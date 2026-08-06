@@ -28,6 +28,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": "all",
+    "macOS": {
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "JohnAi a besoin d'accéder au microphone pour enregistrer vos notes vocales et dicter vos pensées."
+      }
+    }
   }
 }

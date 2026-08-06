@@ -100,15 +100,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const gap = 3.5;
     const startX = (width - (numBars * (barWidth + gap))) / 2;
 
+    if (isListening && micDataArray && analyser) {
+      analyser.getByteFrequencyData(micDataArray);
+    }
+
     for (let i = 0; i < numBars; i++) {
       let barHeight;
       if (isListening) {
-        // Dynamic wave equation
-        const sinVal = Math.sin(phase + i * 0.45);
-        const cosVal = Math.cos(phase * 0.8 + i * 0.2);
-        barHeight = Math.max(4, Math.abs(sinVal + cosVal) * 9 + 4);
+        if (micDataArray && analyser) {
+          const val = micDataArray[i % micDataArray.length] || 0;
+          barHeight = Math.max(4, (val / 255) * 22);
+        } else {
+          const sinVal = Math.sin(phase + i * 0.45);
+          const cosVal = Math.cos(phase * 0.8 + i * 0.2);
+          barHeight = Math.max(4, Math.abs(sinVal + cosVal) * 9 + 4);
+        }
       } else {
-        barHeight = 4; // Flat standby height
+        barHeight = 4;
       }
 
       const x = startX + i * (barWidth + gap);
@@ -234,14 +242,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 5. Speech-to-Text (Voice Recognition)
+  // 5. Real Microphone Capture & Speech-to-Text
+  let audioStream = null;
+  let audioContext = null;
+  let analyser = null;
+  let microphoneSource = null;
+  let micDataArray = null;
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition;
+  let recognition = null;
 
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'fr-FR';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     recognition.onresult = (event) => {
@@ -264,33 +278,69 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    recognition.onend = () => {
-      isListening = false;
-      btnMic.classList.remove('active');
-      statusDot.classList.remove('active');
+    recognition.onerror = (err) => {
+      console.warn("Erreur SpeechRecognition:", err);
     };
 
-    recognition.onerror = (err) => {
-      console.warn("Erreur reconnaissance vocale:", err);
-      isListening = false;
-      btnMic.classList.remove('active');
-      statusDot.classList.remove('active');
+    recognition.onend = () => {
+      if (isListening && recognition) {
+        try { recognition.start(); } catch (e) {}
+      }
     };
   }
 
-  btnMic.addEventListener('click', () => {
+  async function startMicrophone() {
+    try {
+      // Request mic permission explicitly from macOS / System
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Connect real mic to Web Audio API for waveform canvas animation
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      microphoneSource = audioContext.createMediaStreamSource(audioStream);
+      microphoneSource.connect(analyser);
+      micDataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      if (recognition) {
+        try { recognition.start(); } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Accès microphone refusé ou non supporté:", err);
+      alert("Permission microphone requise par macOS. Veuillez l'accorder dans Réglages Système > Confidentialité & Sécurité > Microphone.");
+      stopMicrophone();
+    }
+  }
+
+  function stopMicrophone() {
+    isListening = false;
+    btnMic.classList.remove('active');
+    statusDot.classList.remove('active');
+
+    if (recognition) {
+      try { recognition.stop(); } catch (e) {}
+    }
+
+    if (audioStream) {
+      audioStream.getTracks().forEach(track => track.stop());
+      audioStream = null;
+    }
+
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
+    }
+  }
+
+  btnMic.addEventListener('click', async () => {
     isListening = !isListening;
     btnMic.classList.toggle('active', isListening);
     statusDot.classList.toggle('active', isListening);
 
-    if (isListening && recognition) {
-      try {
-        recognition.start();
-      } catch (e) {
-        console.warn("Recognition already started", e);
-      }
-    } else if (!isListening && recognition) {
-      recognition.stop();
+    if (isListening) {
+      await startMicrophone();
+    } else {
+      stopMicrophone();
     }
   });
 
