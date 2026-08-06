@@ -449,9 +449,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initWebSocket();
 
-  // 8. Send Prompt Action (Text Input)
-  async function sendPrompt() {
-    const text = promptInput.value.trim();
+  const btnCloseApp = document.getElementById('btnCloseApp');
+  if (btnCloseApp) {
+    btnCloseApp.addEventListener('click', () => {
+      responsePanel.classList.add('hidden');
+      if (editPanel) editPanel.classList.add('hidden');
+      if (mobileDashboard) mobileDashboard.classList.add('hidden');
+      if (window.__TAURI_INTERNALS__) {
+        try { window.__TAURI_INTERNALS__.invoke('plugin:window|hide'); } catch (e) {}
+      }
+    });
+  }
+
+  // 8. Send Prompt Action (Text Input or Voice Transcription)
+  async function sendPrompt(overrideText) {
+    const text = (typeof overrideText === 'string') ? overrideText.trim() : promptInput.value.trim();
     if (!text && attachedFiles.length === 0) return;
 
     responsePanel.classList.remove('hidden');
@@ -490,7 +502,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="thought-text">${escapeHtml(text)}</div>
       `;
       thoughtsList.prepend(newCard);
-      promptInput.value = '';
     }
 
     // Send via WebSocket if connected, otherwise fallback to simulation
@@ -504,13 +515,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }));
     } else {
       const fileSummary = attachedFiles.length ? ` (Fichiers joints: ${attachedFiles.map(f => f.name).join(', ')})` : '';
-      setTimeout(() => {
-        streamResponse(`JohnAi (Mode Local) : J'ai bien reçu "${escapeHtml(text)}"${fileSummary}.`);
-      }, 500);
+      if (currentMode !== 'note') {
+        setTimeout(() => {
+          streamResponse(`JohnAi (Mode Local) : J'ai bien reçu "${escapeHtml(text)}"${fileSummary}.`);
+        }, 500);
+      }
     }
 
     // Reset inputs
     promptInput.value = '';
+    attachedFiles = [];
+    if (attachmentBar) attachmentBar.classList.add('hidden');
   }
 
   btnSend.addEventListener('click', sendPrompt);
