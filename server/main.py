@@ -105,6 +105,16 @@ async def health_check():
 async def get_memory_history():
     return {"history": get_recent_history(limit=50)}
 
+# Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
+whisper_model = None
+try:
+    from faster_whisper import WhisperModel
+    # Using 'base' model for ultrafast transcription in French
+    whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+    print("✓ Moteur Whisper Local Speech-to-Text chargé avec succès !")
+except Exception as e:
+    print("Whisper local non chargé:", e)
+
 @app.post("/api/upload")
 async def upload_document(file: UploadFile = File(...)):
     file_location = os.path.join(UPLOAD_DIR, file.filename)
@@ -114,13 +124,22 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    """Transcribe recorded voice note audio blob from widget"""
+    """Transcribe recorded voice note audio blob using local Whisper engine"""
     file_location = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_location, "wb+") as file_object:
         file_object.write(await file.read())
     
-    # Return confirmation & simulated transcription (or Whisper local)
-    transcribed_text = f"Note vocale enregistrée le {datetime.now().strftime('%H:%M')}"
+    transcribed_text = ""
+    if whisper_model:
+        try:
+            segments, info = whisper_model.transcribe(file_location, language="fr", beam_size=5)
+            transcribed_text = " ".join([segment.text for segment in segments]).strip()
+        except Exception as err:
+            print("Erreur transcription Whisper:", err)
+
+    if not transcribed_text:
+        transcribed_text = f"Note vocale enregistrée le {datetime.now().strftime('%H:%M')}"
+        
     return {
         "text": transcribed_text,
         "filename": file.filename,
