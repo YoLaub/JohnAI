@@ -461,15 +461,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  let responseAutoCloseTimer = null;
+
   // 8. Send Prompt Action (Text Input or Voice Transcription)
   async function sendPrompt(overrideText) {
     const text = (typeof overrideText === 'string') ? overrideText.trim() : promptInput.value.trim();
     if (!text && attachedFiles.length === 0) return;
 
+    if (responseAutoCloseTimer) {
+      clearTimeout(responseAutoCloseTimer);
+      responseAutoCloseTimer = null;
+    }
+
     responsePanel.classList.remove('hidden');
 
     if (currentMode === 'note') {
-      responseContent.innerHTML = `<span style="color: #10b981;">✓ Pensée enregistrée dans votre Journal de Pensées 📝</span>`;
+      responseContent.innerHTML = `<span style="color: #10b981; font-weight: 600;">✓ Pensée enregistrée dans votre Journal de Pensées 📝</span>`;
+      // Auto-close confirmation popup after 2.5s
+      responseAutoCloseTimer = setTimeout(() => {
+        responsePanel.classList.add('hidden');
+      }, 2500);
     } else {
       responseContent.innerHTML = `<span style="color: #06b6d4;">Transmission à JohnAi...</span>`;
     }
@@ -538,6 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnCloseResponse.addEventListener('click', () => {
+    if (responseAutoCloseTimer) clearTimeout(responseAutoCloseTimer);
     responsePanel.classList.add('hidden');
   });
 
