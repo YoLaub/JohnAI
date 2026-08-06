@@ -126,14 +126,19 @@ async def upload_document(file: UploadFile = File(...)):
 async def transcribe_audio(file: UploadFile = File(...)):
     """Transcribe recorded voice note audio blob using local Whisper engine"""
     file_location = os.path.join(UPLOAD_DIR, file.filename)
+    content = await file.read()
     with open(file_location, "wb+") as file_object:
-        file_object.write(await file.read())
+        file_object.write(content)
     
+    file_size = os.path.getsize(file_location)
+    print(f"🎙️ Audio reçu pour transcription: {file.filename} ({file_size} octets)")
+
     transcribed_text = ""
-    if whisper_model:
+    if whisper_model and file_size > 200:
         try:
             segments, info = whisper_model.transcribe(file_location, language="fr", beam_size=5)
             transcribed_text = " ".join([segment.text for segment in segments]).strip()
+            print(f"✨ Transcription Whisper réussie: '{transcribed_text}'")
         except Exception as err:
             print("Erreur transcription Whisper:", err)
 

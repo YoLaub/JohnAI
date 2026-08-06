@@ -320,12 +320,21 @@ document.addEventListener('DOMContentLoaded', () => {
           if (e.data.size > 0) audioChunks.push(e.data);
         };
         mediaRecorder.onstop = async () => {
-          if (!speechTranscribed && audioChunks.length > 0) {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const chunksToProcess = [...audioChunks];
+          audioChunks = [];
+
+          // Safely stop stream tracks AFTER recording stops
+          if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+          }
+
+          if (chunksToProcess.length > 0) {
+            const audioBlob = new Blob(chunksToProcess, { type: 'audio/webm' });
             await sendAudioForTranscription(audioBlob);
           }
         };
-        mediaRecorder.start();
+        mediaRecorder.start(100); // Slices data every 100ms
       }
 
       if (recognition) {
@@ -339,6 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function sendAudioForTranscription(audioBlob) {
+    if (!audioBlob || audioBlob.size < 100) return;
+
     const formData = new FormData();
     formData.append("file", audioBlob, "note_vocale.webm");
 
@@ -353,9 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok) {
         const data = await res.json();
-        const text = data.text || "Note vocale enregistrée";
-        promptInput.value = text;
-        sendPrompt();
+        const text = data.text || "";
+        if (text) {
+          await sendPrompt(text);
+        }
       }
     } catch (e) {
       console.warn("Erreur transcription serveur:", e);
@@ -367,15 +379,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnMic.classList.remove('active');
     statusDot.classList.remove('active');
 
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
-
     if (recognition) {
       try { recognition.stop(); } catch (e) {}
     }
 
-    if (audioStream) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    } else if (audioStream) {
       audioStream.getTracks().forEach(track => track.stop());
       audioStream = null;
     }
