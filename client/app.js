@@ -242,55 +242,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 5. Real Microphone Capture & Speech-to-Text
+  // 5. Real Microphone Capture, MediaRecorder & Speech-to-Text
   let audioStream = null;
   let audioContext = null;
   let analyser = null;
   let microphoneSource = null;
   let micDataArray = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let speechTranscribed = false;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
 
   if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    try {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'fr-FR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-    recognition.onresult = (event) => {
-      let interim = '';
-      let final = '';
+      recognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
         }
-      }
 
-      if (final) {
-        promptInput.value = final;
-        sendPrompt(final);
-      } else if (interim) {
-        promptInput.value = interim;
-      }
-    };
+        if (final) {
+          speechTranscribed = true;
+          promptInput.value = final;
+          sendPrompt();
+        } else if (interim) {
+          promptInput.value = interim;
+        }
+      };
 
-    recognition.onerror = (err) => {
-      console.warn("Erreur SpeechRecognition:", err);
-    };
+      recognition.onerror = (err) => {
+        console.warn("Erreur SpeechRecognition:", err);
+      };
 
-    recognition.onend = () => {
-      if (isListening && recognition) {
-        try { recognition.start(); } catch (e) {}
-      }
-    };
+      recognition.onend = () => {
+        if (isListening && recognition) {
+          try { recognition.start(); } catch (e) {}
+        }
+      };
+    } catch (e) {
+      console.warn("SpeechRecognition non supporté dans cet environnement", e);
+    }
   }
 
   async function startMicrophone() {
     try {
+      speechTranscribed = false;
+      audioChunks = [];
+
       // Request mic permission explicitly from macOS / System
       audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -302,6 +313,21 @@ document.addEventListener('DOMContentLoaded', () => {
       microphoneSource.connect(analyser);
       micDataArray = new Uint8Array(analyser.frequencyBinCount);
 
+      // MediaRecorder audio capture
+      if (window.MediaRecorder) {
+        mediaRecorder = new MediaRecorder(audioStream);
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+        mediaRecorder.onstop = async () => {
+          if (!speechTranscribed && audioChunks.length > 0) {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            await sendAudioForTranscription(audioBlob);
+          }
+        };
+        mediaRecorder.start();
+      }
+
       if (recognition) {
         try { recognition.start(); } catch (e) {}
       }
@@ -312,10 +338,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function sendAudioForTranscription(audioBlob) {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "note_vocale.webm");
+
+    responsePanel.classList.remove('hidden');
+    responseContent.innerHTML = `<span style="color: #06b6d4;">Transcription de votre note vocale en cours...</span>`;
+
+    try {
+      const res = await fetch("http://localhost:8000/api/transcribe", {
+        method: "POST",
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.text || "Note vocale enregistrée";
+        promptInput.value = text;
+        sendPrompt();
+      }
+    } catch (e) {
+      console.warn("Erreur transcription serveur:", e);
+    }
+  }
+
   function stopMicrophone() {
     isListening = false;
     btnMic.classList.remove('active');
     statusDot.classList.remove('active');
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
 
     if (recognition) {
       try { recognition.stop(); } catch (e) {}

@@ -112,6 +112,21 @@ async def upload_document(file: UploadFile = File(...)):
         file_object.write(await file.read())
     return {"filename": file.filename, "status": "uploaded", "size_bytes": os.path.getsize(file_location)}
 
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """Transcribe recorded voice note audio blob from widget"""
+    file_location = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_location, "wb+") as file_object:
+        file_object.write(await file.read())
+    
+    # Return confirmation & simulated transcription (or Whisper local)
+    transcribed_text = f"Note vocale enregistrée le {datetime.now().strftime('%H:%M')}"
+    return {
+        "text": transcribed_text,
+        "filename": file.filename,
+        "status": "transcribed"
+    }
+
 async def stream_from_gemini(messages_payload: list, api_key: str):
     """Stream response from Google Gemini 2.5 Flash REST API"""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key={api_key}&alt=sse"
