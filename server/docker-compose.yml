@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  johnai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: johnai-vps-server
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DB_PATH=/app/data/johnai_memory.db
+      - UPLOAD_DIR=/app/data/uploads
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - GENERAL_MODEL=gemma3:12b
+      - CODER_MODEL=qwen2.5-coder:14b
+    volumes:
+      - johnai_data:/app/data
+
+volumes:
+  johnai_data:
+    driver: local

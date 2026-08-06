@@ -1,0 +1,17 @@
+{
+  "name": "johnai-client",
+  "version": "0.1.0",
+  "description": "JohnAi Desktop Floating Pill Widget (Tauri 2.0)",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

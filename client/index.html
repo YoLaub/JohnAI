@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JohnAi - Floating Desktop Widget</title>
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Marked.js for Markdown & Code Block rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- PWA Manifest for Android -->
+  <link rel="manifest" href="manifest.json">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Floating Main Container -->
+  <main class="widget-wrapper" id="widgetContainer">
+    
+    <!-- Drag & Drop Zone Overlay -->
+    <div class="drag-overlay" id="dragOverlay">
+      <div class="drag-content">
+        <svg class="drag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <span>Déposer des fichiers ici</span>
+      </div>
+    </div>
+
+    <!-- Main Compact Pill Bar -->
+    <div class="pill-bar" id="pillBar" data-tauri-drag-region>
+      
+      <!-- Brand Logo / Badge -->
+      <div class="brand" title="JohnAi Assistant" data-tauri-drag-region>
+        <span class="brand-sparkle" data-tauri-drag-region>✦</span>
+        <span class="brand-name" data-tauri-drag-region>JohnAi</span>
+      </div>
+
+      <!-- Waveform Visualizer Area -->
+      <div class="waveform-container" id="waveformContainer" title="État de l'assistant" data-tauri-drag-region>
+        <canvas id="waveformCanvas" width="110" height="28" data-tauri-drag-region></canvas>
+        <span class="status-dot active" id="statusDot" data-tauri-drag-region></span>
+      </div>
+
+      <!-- Mode Selector (Note vs Chat) -->
+      <button class="mode-toggle-btn" id="btnToggleMode" title="Changer de mode (Pensée 📝 / Chat 💬)">
+        <span id="modeIcon">📝</span>
+        <span id="modeLabel" class="mode-label">Note</span>
+      </button>
+
+      <!-- Quick Action Buttons -->
+      <div class="action-buttons">
+        
+        <!-- Toggle View Mode (Compact Pill vs Full Dashboard) -->
+        <button class="icon-btn" id="btnToggleView" title="Basculer la vue (Pilule Flottante ✦ / Tableau de bord 📱)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="4"/>
+            <path d="M9 3v18"/>
+          </svg>
+        </button>
+
+        <!-- Add Document (+ Button) -->
+        <button class="icon-btn" id="btnAttach" title="Ajouter un document (+)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="11" x2="12" y2="17"/>
+            <line x1="9" y1="14" x2="15" y2="14"/>
+          </svg>
+        </button>
+
+        <!-- Toggle Text Input (Pencil Button) -->
+        <button class="icon-btn" id="btnToggleEdit" title="Écrire un message (Crayon)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </button>
+
+        <!-- Mic Toggle Button -->
+        <button class="icon-btn active" id="btnMic" title="Activer / Désactiver le micro">
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+
+        <!-- Stop Action Button -->
+        <button class="icon-btn danger" id="btnStop" title="Stopper l'action en cours">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Hidden Native File Input -->
+    <input type="file" id="fileInput" multiple style="display: none;">
+
+    <!-- Collapsible Attachment Bar (Shown when files are attached) -->
+    <div class="attachment-bar hidden" id="attachmentBar">
+      <div class="attachment-list" id="attachmentList"></div>
+    </div>
+
+    <!-- Collapsible Text Edit Panel -->
+    <div class="edit-panel hidden" id="editPanel">
+      <div class="input-wrapper">
+        <textarea id="promptInput" placeholder="Posez une question à JohnAi..." rows="2"></textarea>
+        <button class="send-btn" id="btnSend" title="Envoyer (Entrée)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Response Display Panel -->
+    <div class="response-panel hidden" id="responsePanel">
+      <div class="response-header">
+        <span class="response-title">JohnAi</span>
+        <button class="close-response-btn" id="btnCloseResponse" title="Fermer">✕</button>
+      </div>
+      <div class="response-content" id="responseContent"></div>
+    </div>
+
+    <!-- Collapsible Full Mobile Dashboard (Notes History) -->
+    <div class="mobile-dashboard hidden" id="mobileDashboard">
+      <div class="dashboard-header">
+        <h3>Journal de Pensées</h3>
+        <span class="sync-badge">☁️ Sync VPS</span>
+      </div>
+      <div class="thoughts-list" id="thoughtsList">
+        <div class="thought-card">
+          <div class="thought-tag">📝 Pensée récente</div>
+          <div class="thought-text">Exemple : Note vocale synchronisée sur tous vos appareils.</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

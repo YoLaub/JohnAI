@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.json",
+  "productName": "JohnAi",
+  "version": "0.1.0",
+  "identifier": "com.johnai.widget",
+  "build": {
+    "frontendDist": "../",
+    "devUrl": "http://localhost:8080"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "JohnAi Widget",
+        "width": 460,
+        "height": 420,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}

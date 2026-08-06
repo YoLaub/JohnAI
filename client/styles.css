@@ -1,0 +1,597 @@
+/* ==========================================================================
+   JohnAi Desktop Widget - Modern Glassmorphism & Neon Glow Design System
+   ========================================================================== */
+
+:root {
+  --bg-glass: rgba(13, 16, 26, 0.78);
+  --bg-glass-hover: rgba(22, 27, 43, 0.85);
+  --bg-panel: rgba(18, 22, 36, 0.85);
+  
+  --border-neon-purple: #a855f7;
+  --border-neon-cyan: #06b6d4;
+  --border-glass: rgba(255, 255, 255, 0.12);
+  
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  
+  --accent-purple: #a855f7;
+  --accent-cyan: #06b6d4;
+  --accent-pink: #ec4899;
+  --danger-red: #ef4444;
+  --success-green: #10b981;
+  
+  --radius-pill: 9999px;
+  --radius-panel: 18px;
+  --radius-btn: 10px;
+  
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+  
+  --shadow-glow: 0 0 20px rgba(168, 85, 247, 0.25), 0 0 40px rgba(6, 182, 212, 0.15);
+  --shadow-drop: 0 12px 32px rgba(0, 0, 0, 0.45);
+  
+  --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reset & Base Settings */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  background: transparent !important;
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10px;
+  overflow: hidden;
+}
+
+/* Main Floating Container Wrapper */
+.widget-wrapper {
+  position: relative;
+  width: 440px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: var(--transition-smooth);
+}
+
+/* Drag & Drop Overlay Zone */
+.drag-overlay {
+  position: absolute;
+  inset: -6px;
+  border-radius: 26px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 2px dashed var(--border-neon-cyan);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-smooth);
+}
+
+.drag-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drag-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.drag-icon {
+  width: 24px;
+  height: 24px;
+  stroke: var(--accent-cyan);
+}
+
+/* Compact Horizontal Pill Bar (Draggable Window Region) */
+.pill-bar, .brand, .brand-name, .brand-sparkle, .waveform-container, #waveformCanvas {
+  -webkit-app-region: drag;
+}
+
+.pill-bar {
+  position: relative;
+  height: 52px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 0 18px;
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+  transition: var(--transition-smooth);
+  cursor: grab;
+}
+
+.pill-bar:active {
+  cursor: grabbing;
+}
+
+/* Action Buttons (Non-draggable so clicks work) */
+.action-buttons, .icon-btn, .mode-toggle-btn, button, input, textarea, a {
+  -webkit-app-region: no-drag;
+}
+
+.mode-toggle-btn {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: var(--radius-pill);
+  color: var(--text-main);
+  padding: 3px 9px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.mode-toggle-btn:hover {
+  background: rgba(168, 85, 247, 0.3);
+  transform: scale(1.03);
+}
+
+.mode-toggle-btn.chat-mode {
+  background: rgba(6, 182, 212, 0.18);
+  border-color: rgba(6, 182, 212, 0.4);
+  color: var(--accent-cyan);
+}
+
+/* Neon Gradient Animated Border */
+.pill-bar::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-pill);
+  padding: 1px;
+  background: linear-gradient(135deg, var(--border-neon-purple), var(--border-neon-cyan), var(--accent-pink));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.85;
+  transition: var(--transition-smooth);
+}
+
+.pill-bar:hover::before {
+  opacity: 1;
+  filter: brightness(1.2);
+}
+
+/* Brand Logo Section */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.brand-sparkle {
+  color: var(--accent-cyan);
+  font-size: 1rem;
+  animation: pulseSparkle 2s infinite alternate ease-in-out;
+}
+
+@keyframes pulseSparkle {
+  0% { transform: scale(0.9); opacity: 0.7; filter: drop-shadow(0 0 2px var(--accent-cyan)); }
+  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 8px var(--accent-purple)); }
+}
+
+.brand-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 30%, var(--text-muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Waveform Visualizer Area */
+.waveform-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+#waveformCanvas {
+  display: block;
+}
+
+.status-dot {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: var(--transition-smooth);
+}
+
+.status-dot.active {
+  background: var(--success-green);
+  box-shadow: 0 0 8px var(--success-green);
+}
+
+/* Action Buttons Bar */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.icon-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.icon-btn.active {
+  background: rgba(168, 85, 247, 0.2);
+  color: var(--accent-purple);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+.icon-btn.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger-red);
+}
+
+.icon-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.hidden {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Attachment Chips Bar */
+.attachment-bar {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-glass);
+  padding: 8px 12px;
+  transition: var(--transition-smooth);
+}
+
+.attachment-bar.hidden {
+  display: none;
+}
+
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: var(--accent-cyan);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.chip-remove {
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.chip-remove:hover {
+  opacity: 1;
+  color: #fff;
+}
+
+/* Collapsible Text Edit Panel */
+.edit-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(24px);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-glass);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-drop);
+  transition: var(--transition-smooth);
+}
+
+.edit-panel.hidden {
+  display: none;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+textarea#promptInput {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.88rem;
+  resize: none;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+textarea#promptInput:focus {
+  border-color: var(--border-neon-purple);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+}
+
+.send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+}
+
+.send-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.send-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.5);
+}
+
+/* Response Panel */
+.response-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(24px);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-glass);
+  padding: 14px 16px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-drop);
+  transition: var(--transition-smooth);
+}
+
+.response-panel.hidden {
+  display: none;
+}
+
+.response-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.response-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent-cyan);
+}
+
+.close-response-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.close-response-btn:hover {
+  color: #fff;
+}
+
+.response-content {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+/* Markdown & Code Block Formatting */
+.response-content p {
+  margin-bottom: 8px;
+}
+
+.response-content code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+}
+
+.response-content pre {
+  background: rgba(10, 13, 22, 0.9);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+.response-content pre code {
+  background: transparent;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.response-content ul, .response-content ol {
+  margin-left: 18px;
+  margin-bottom: 8px;
+}
+
+/* Mobile Dashboard & Thought History Cards */
+.mobile-dashboard {
+  background: var(--bg-panel);
+  backdrop-filter: blur(24px);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-glass);
+  padding: 14px 16px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-drop);
+  transition: var(--transition-smooth);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-header h3 {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.sync-badge {
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.15);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.thoughts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thought-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: var(--transition-smooth);
+  cursor: pointer;
+}
+
+.thought-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.thought-tag {
+  font-size: 0.72rem;
+  color: var(--accent-purple);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.thought-text {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+/* Mobile Responsive & Android Dictaphone Mode */
+@media (max-width: 600px) {
+  body {
+    padding: 12px;
+    align-items: center;
+  }
+  
+  .widget-wrapper {
+    width: 100%;
+  }
+  
+  .pill-bar {
+    height: 60px;
+    padding: 0 16px;
+  }
+  
+  .mode-toggle-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+  
+  .icon-btn {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .icon-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+}
