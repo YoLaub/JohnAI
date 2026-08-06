@@ -201,7 +201,13 @@ async def websocket_endpoint(websocket: WebSocket):
             # Save user message to central SQLite memory
             save_message(device_type=device_type, role="user", content=prompt_text)
 
-            recent_context = get_recent_history(limit=10)
+            # If Mode Note: Instant confirmation without triggering LLM generation
+            if payload.get("mode") == "note":
+                await manager.send_json({
+                    "type": "done",
+                    "full_text": "✓ **Pensée enregistrée dans votre mémoire centralisée** 📝"
+                }, websocket)
+                continue
             messages_payload = [
                 {
                     "role": "system",

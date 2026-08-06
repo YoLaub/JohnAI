@@ -455,7 +455,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && attachedFiles.length === 0) return;
 
     responsePanel.classList.remove('hidden');
-    responseContent.innerHTML = `<span style="color: #06b6d4;">Transmission à JohnAi...</span>`;
+
+    if (currentMode === 'note') {
+      responseContent.innerHTML = `<span style="color: #10b981;">✓ Pensée enregistrée dans votre Journal de Pensées 📝</span>`;
+    } else {
+      responseContent.innerHTML = `<span style="color: #06b6d4;">Transmission à JohnAi...</span>`;
+    }
 
     // Upload files if attached
     if (attachedFiles.length > 0) {
@@ -485,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="thought-text">${escapeHtml(text)}</div>
       `;
       thoughtsList.prepend(newCard);
+      promptInput.value = '';
     }
 
     // Send via WebSocket if connected, otherwise fallback to simulation
