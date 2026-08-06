@@ -419,6 +419,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // If in Mode Note, immediately prepend note to Journal de Pensées UI
+    if (currentMode === 'note' && text && thoughtsList) {
+      if (thoughtsList.innerText.includes('Aucune pensée')) {
+        thoughtsList.innerHTML = '';
+      }
+      const newCard = document.createElement('div');
+      newCard.className = 'thought-card';
+      newCard.innerHTML = `
+        <div class="thought-tag">📝 Pensée récente</div>
+        <div class="thought-text">${escapeHtml(text)}</div>
+      `;
+      thoughtsList.prepend(newCard);
+    }
+
     // Send via WebSocket if connected, otherwise fallback to simulation
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
