@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleEdit = document.getElementById('btnToggleEdit');
   const btnToggleView = document.getElementById('btnToggleView');
   const btnMic = document.getElementById('btnMic');
-  const btnStop = document.getElementById('btnStop');
   const fileInput = document.getElementById('fileInput');
   
   const attachmentBar = document.getElementById('attachmentBar');
@@ -82,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseResponse = document.getElementById('btnCloseResponse');
 
   // App State
-  let isListening = true;
+  let isListening = false;
   let attachedFiles = [];
   let isEditOpen = false;
 

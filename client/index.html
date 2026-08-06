@@ -46,7 +46,7 @@
 
       <!-- Waveform Visualizer Area -->
       <div class="waveform-container" id="waveformContainer" title="État de l'assistant" data-tauri-drag-region>
-        <canvas id="waveformCanvas" width="110" height="28" data-tauri-drag-region></canvas>
+        <canvas id="waveformCanvas" width="75" height="28" data-tauri-drag-region></canvas>
         <span class="status-dot active" id="statusDot" data-tauri-drag-region></span>
       </div>
 
@@ -86,18 +86,11 @@
         </button>
 
         <!-- Mic Toggle Button -->
-        <button class="icon-btn active" id="btnMic" title="Activer / Désactiver le micro">
+        <button class="icon-btn" id="btnMic" title="Activer / Désactiver le micro">
           <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             <line x1="12" y1="19" x2="12" y2="22"/>
-          </svg>
-        </button>
-
-        <!-- Stop Action Button -->
-        <button class="icon-btn danger" id="btnStop" title="Stopper l'action en cours">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="6" width="12" height="12" rx="2"/>
           </svg>
         </button>
 

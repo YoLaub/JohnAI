@@ -56,8 +56,8 @@ html, body {
 /* Main Floating Container Wrapper */
 .widget-wrapper {
   position: relative;
-  width: 440px;
-  max-width: 100%;
+  width: 520px;
+  max-width: 98vw;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -116,9 +116,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px 0 18px;
-  border: 1px solid var(--border-glass);
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+  padding: 0 12px 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: none !important;
   transition: var(--transition-smooth);
   cursor: grab;
 }
@@ -277,6 +277,21 @@ html, body {
   background: rgba(168, 85, 247, 0.2);
   color: var(--accent-purple);
   box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+/* Red Active Recording Mic State */
+.icon-btn#btnMic.active {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.6) !important;
+  animation: pulseMicRed 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseMicRed {
+  0% { transform: scale(1); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+  50% { transform: scale(1.08); box-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
+  100% { transform: scale(1); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
 }
 
 .icon-btn.danger {

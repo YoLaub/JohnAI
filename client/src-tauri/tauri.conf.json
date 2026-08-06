@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "JohnAi Widget",
-        "width": 460,
-        "height": 420,
+        "width": 550,
+        "height": 450,
         "resizable": true,
         "decorations": false,
         "transparent": true,
