@@ -5,8 +5,9 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 8080",
-    "tauri": "tauri"
+    "build": "mkdir -p dist && cp index.html styles.css app.js manifest.json dist/",
+    "dev": "npm run build && python3 -m http.server 8080 --directory .",
+    "tauri": "npm run build && tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1"
