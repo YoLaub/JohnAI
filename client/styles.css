@@ -615,34 +615,84 @@ textarea#promptInput:focus {
   line-height: 1.4;
 }
 
-/* Mobile Responsive & Android Dictaphone Mode */
-@media (max-width: 600px) {
+/* Mobile Responsive & Android Dictaphone Mode
+   Two conditions, not just max-width: a phone in landscape is often wider than
+   600px (e.g. ~800-900px), so a width-only query misses that orientation and
+   falls back to the desktop fit-content pill floating in a mostly empty screen. */
+@media (max-width: 600px), (max-height: 600px) {
+  html, body {
+    /* No OS window transparency to blend with on mobile (unlike the desktop
+       Tauri window) — a transparent body just renders flat white/blank. */
+    background: #0d101a !important;
+  }
+
   body {
     padding: 12px;
-    align-items: center;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-y: auto;
   }
-  
+
   .widget-wrapper {
     width: 100%;
+    max-width: 100%;
   }
-  
+
+  /* Row 1: brand + waveform. Row 2: mode toggle + action buttons.
+     Achieved by wrapping the pill-bar's existing children — no HTML change. */
   .pill-bar {
-    height: 60px;
-    padding: 0 16px;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    height: auto;
+    padding: 14px 16px;
+    /* The 9999px "capsule" radius reads fine for a single short bar, but looks
+       stretched/egg-shaped once the bar is 3 rows tall on mobile. */
+    border-radius: var(--radius-panel);
   }
-  
+
+  .pill-bar::before {
+    border-radius: var(--radius-panel);
+  }
+
+  .brand {
+    order: 1;
+  }
+
+  .waveform-container {
+    order: 2;
+    margin-left: auto;
+  }
+
   .mode-toggle-btn {
-    padding: 6px 12px;
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+    padding: 8px 12px;
     font-size: 0.85rem;
   }
-  
+
+  .action-buttons {
+    order: 4;
+    flex-basis: 100%;
+    justify-content: center;
+    gap: 10px;
+  }
+
   .icon-btn {
     width: 42px;
     height: 42px;
   }
-  
+
   .icon-btn svg {
     width: 20px;
     height: 20px;
+  }
+
+  /* Row 3: notes/chat content, below the pill — give it real room to breathe
+     instead of the desktop's small fixed-height card. */
+  .response-panel,
+  .mobile-dashboard {
+    max-height: none;
+    flex: 1;
   }
 }
