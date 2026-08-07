@@ -57,7 +57,18 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   - `server/connection_manager.py` : `ConnectionManager`
   - `server/memory_facts.py` : détection des commandes "retiens que" / "oublie que"
   - `server/database.py` : mémoire SQLite (historique + faits durables)
-  - STT local via faster-whisper (chargé dans `main.py`, pas encore extrait).
+  - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback uniquement**
+    pour la PWA Android (pas de runtime Tauri) ou si la transcription locale échoue.
+- **STT local (prioritaire sur Mac/Windows)** : `client/src-tauri/src/whisper_stt.rs`
+  (whisper-rs/whisper.cpp, Metal+CoreML sur macOS) + `client/src/local-stt.js`
+  (décodage audio → PCM mono 16kHz via Web Audio API, puis commande Tauri
+  `transcribe_audio`). Modèle `ggml-small.bin` téléchargé une fois au premier usage
+  dans le dossier de données de l'app (pas embarqué dans l'installeur). `app.js`
+  tente le local en premier si `window.__TAURI__` existe, retombe sur le serveur
+  sinon. Choisi plutôt qu'un sidecar Python (faster-whisper local) car ça compile
+  directement dans le binaire Tauri existant — pas de process à gérer/lancer.
+  _Non encore validé avec un vrai micro_ (contrainte de l'environnement de dev) —
+  à tester en conditions réelles.
   - Import : chaque module interne suit le pattern `try: from server.X import ...
     except ModuleNotFoundError: from X import ...` — le `Dockerfile` copie le contenu
     de `server/` à plat dans `/app` et lance `uvicorn main:app`, donc les deux formes
