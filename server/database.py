@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import json
+import uuid
 from datetime import datetime
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "data", "johnai_memory.db"))
@@ -62,6 +63,47 @@ def get_recent_history(limit: int = 20):
     for role, content in reversed(rows):
         history.append({"role": role, "content": content})
     return history
+
+def add_memory_fact(value: str) -> str:
+    """Store a new free-form memorized fact (not an update — always a new row)."""
+    fact_key = uuid.uuid4().hex
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO long_term_memory (fact_key, fact_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+        (fact_key, value)
+    )
+    conn.commit()
+    conn.close()
+    return fact_key
+
+
+def get_all_memory_facts():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT fact_key, fact_value FROM long_term_memory ORDER BY id ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"fact_key": key, "fact_value": value} for key, value in rows]
+
+
+def delete_memory_facts_matching(query: str):
+    """Delete every fact whose value contains `query` (case-insensitive). Returns the deleted values."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT fact_value FROM long_term_memory WHERE fact_value LIKE ? COLLATE NOCASE",
+        (f"%{query}%",)
+    )
+    deleted_values = [row[0] for row in cursor.fetchall()]
+    cursor.execute(
+        "DELETE FROM long_term_memory WHERE fact_value LIKE ? COLLATE NOCASE",
+        (f"%{query}%",)
+    )
+    conn.commit()
+    conn.close()
+    return deleted_values
+
 
 def save_memory_fact(key: str, value: str):
     conn = sqlite3.connect(DB_PATH)

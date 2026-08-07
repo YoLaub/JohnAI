@@ -45,7 +45,8 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
     sélection provider/modèle)
   - `server/providers.py` : `stream_from_gemini`, `stream_from_ollama`, `get_available_ollama_models`
   - `server/connection_manager.py` : `ConnectionManager`
-  - `server/database.py` : mémoire SQLite
+  - `server/memory_facts.py` : détection des commandes "retiens que" / "oublie que"
+  - `server/database.py` : mémoire SQLite (historique + faits durables)
   - STT local via faster-whisper (chargé dans `main.py`, pas encore extrait).
   - Import : chaque module interne suit le pattern `try: from server.X import ...
     except ModuleNotFoundError: from X import ...` — le `Dockerfile` copie le contenu
@@ -80,6 +81,15 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   `server/main.py`, avant les imports internes qui lisent `os.getenv()` à l'import.
 - Upload : les noms de fichiers sont assainis par `sanitize_filename()` avant d'atteindre le
   disque (`server/main.py`) — ne jamais réutiliser `file.filename` brut dans un chemin.
+- Faits durables (`long_term_memory`, au-delà de la fenêtre glissante des 20 derniers
+  messages) : déclenchement par phrase-clé déterministe (`server/memory_facts.py`,
+  jamais de tool-calling LLM) — "retiens que ..." / "souviens-toi que ..." / "n'oublie
+  pas que ..." mémorise (une nouvelle entrée à chaque fois, pas d'upsert par clé —
+  `add_memory_fact()`), "oublie que ..." / "efface que ..." supprime les faits dont la
+  valeur contient le texte donné (`delete_memory_facts_matching()`, substring
+  case-insensitive). Ces commandes court-circuitent Mode Note/Chat et priment dessus.
+  Tous les faits mémorisés sont injectés dans le system prompt à chaque génération
+  (`get_all_memory_facts()` dans `server/main.py`).
 
 ## Commandes
 - Serveur : `cp server/.env.example server/.env` (une fois, puis remplir `API_KEY`) puis

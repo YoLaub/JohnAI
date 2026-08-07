@@ -11,17 +11,25 @@ from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 try:
-    from server.database import init_db, save_message, get_recent_history, save_memory_fact
+    from server.database import (
+        init_db, save_message, get_recent_history,
+        add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
+    )
     from server.security import require_api_key, check_websocket_api_key, sanitize_filename
     from server.model_router import is_code_request, choose_model
     from server.providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
     from server.connection_manager import ConnectionManager
+    from server.memory_facts import extract_remember_fact, extract_forget_query
 except ModuleNotFoundError:
-    from database import init_db, save_message, get_recent_history, save_memory_fact
+    from database import (
+        init_db, save_message, get_recent_history,
+        add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
+    )
     from security import require_api_key, check_websocket_api_key, sanitize_filename
     from model_router import is_code_request, choose_model
     from providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
     from connection_manager import ConnectionManager
+    from memory_facts import extract_remember_fact, extract_forget_query
 
 app = FastAPI(
     title="JohnAi VPS Central Server",
@@ -155,6 +163,28 @@ async def websocket_endpoint(websocket: WebSocket):
             # Save user message to central SQLite memory
             save_message(device_type=device_type, role="user", content=prompt_text)
 
+            # Explicit fact commands take priority over Mode Note/Chat: "retiens que ..."
+            # memorizes a durable fact, "oublie que ..." removes matching ones.
+            remember_fact = extract_remember_fact(user_content)
+            if remember_fact:
+                add_memory_fact(remember_fact)
+                await manager.send_json({
+                    "type": "done",
+                    "full_text": f"✓ **Fait mémorisé** : {remember_fact}"
+                }, websocket)
+                continue
+
+            forget_query = extract_forget_query(user_content)
+            if forget_query:
+                deleted = delete_memory_facts_matching(forget_query)
+                if deleted:
+                    forgotten_list = "\n".join(f"- {v}" for v in deleted)
+                    confirmation = f"✓ **{len(deleted)} fait(s) oublié(s)** :\n{forgotten_list}"
+                else:
+                    confirmation = f"⚠️ Aucun fait mémorisé ne correspond à « {forget_query} »."
+                await manager.send_json({"type": "done", "full_text": confirmation}, websocket)
+                continue
+
             # If Mode Note: Instant confirmation without triggering LLM generation
             if payload.get("mode") == "note":
                 await manager.send_json({
@@ -164,11 +194,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             recent_context = get_recent_history(limit=20)
+            system_prompt = "Tu es JohnAi, un assistant IA personnel omniprésent, intelligent, concis et utile."
+            memorized_facts = get_all_memory_facts()
+            if memorized_facts:
+                facts_list = "\n".join(f"- {f['fact_value']}" for f in memorized_facts)
+                system_prompt += f"\n\nFaits mémorisés sur l'utilisateur à prendre en compte :\n{facts_list}"
+
             messages_payload = [
-                {
-                    "role": "system",
-                    "content": "Tu es JohnAi, un assistant IA personnel omniprésent, intelligent, concis et utile."
-                }
+                {"role": "system", "content": system_prompt}
             ] + recent_context
 
             available_models = await get_available_ollama_models(OLLAMA_URL)
