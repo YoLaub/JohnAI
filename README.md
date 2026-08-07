@@ -81,6 +81,12 @@ npx @tauri-apps/cli dev
    ```
 4. Déployez ! Coolify générera l'URL sécurisée HTTPS (`https://johnai.votre-domaine.com`).
 
+> Le conteneur écoute en interne sur le port 8000 (`PORT`), mais `server/docker-compose.yaml`
+> publie ce port sur l'hôte en 8001 (`"8001:8000"`) pour éviter un conflit si un autre
+> service tourne déjà sur le port 8000 de ce VPS. Le routage par domaine Coolify passe par
+> le réseau Docker interne (port 8000), pas par le port publié sur l'hôte — rien à changer
+> côté domaine. Si ton VPS a le port 8000 libre, tu peux remettre `"8000:8000"`.
+
 ---
 
 ## 📱 Installation sur Smartphone Android (PWA)
