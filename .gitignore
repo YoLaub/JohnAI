@@ -27,5 +27,8 @@ server/.env
 server/data/
 server/uploads/
 
+# PWA static assets, built into the Docker image from client/ — never committed
+server/static/
+
 # Scratch screenshots for bug reports, not app content
 bug/

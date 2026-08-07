@@ -3,8 +3,10 @@ version: '3.8'
 services:
   johnai-server:
     build:
-      context: .
-      dockerfile: Dockerfile
+      # Repo root, not server/ — the Dockerfile needs client/ too, to build
+      # the PWA static assets it serves at "/".
+      context: ..
+      dockerfile: server/Dockerfile
     container_name: johnai-vps-server
     restart: always
     ports:

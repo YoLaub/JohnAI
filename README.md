@@ -87,6 +87,11 @@ npx @tauri-apps/cli dev
 > le réseau Docker interne (port 8000), pas par le port publié sur l'hôte — rien à changer
 > côté domaine. Si ton VPS a le port 8000 libre, tu peux remettre `"8000:8000"`.
 
+> Le build Docker (`server/Dockerfile`) compile aussi le client (`client/`) en une étape
+> séparée et sert son contenu à `/` — d'où `context: ..` dans `server/docker-compose.yaml`
+> (le build a besoin d'accéder à `client/`, pas seulement `server/`). La base directory
+> Coolify reste `server/`, seul le `context` du build pointe vers la racine du repo.
+
 ---
 
 ## 📱 Installation sur Smartphone Android (PWA)
