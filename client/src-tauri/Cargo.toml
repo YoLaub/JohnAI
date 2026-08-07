@@ -5,6 +5,11 @@ description = "JohnAi Floating Desktop Widget"
 authors = ["Yoann"]
 edition = "2021"
 
+[lib]
+name = "johnai_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "src/lib.rs"
+
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
 
@@ -12,6 +17,13 @@ tauri-build = { version = "2.0.0", features = [] }
 tauri = { version = "2.0.0", features = ["macos-private-api"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# Local Whisper STT (whisper-rs/whisper.cpp) is desktop-only: whisper-rs-sys 0.15's
+# build.rs uses `cfg!(target_os = "macos")` to decide link flags, which reflects the
+# *host* OS in a build script, not the cross-compile target — so it wrongly demands
+# a macOS-only static lib (ggml-blas) when cross-compiling to Android from macOS.
+# Android keeps working via the existing server-side Whisper fallback instead.
+[target.'cfg(not(target_os = "android"))'.dependencies]
 whisper-rs = "0.16.0"
 reqwest = { version = "0.13.4", features = ["stream"] }
 futures-util = "0.3.33"
