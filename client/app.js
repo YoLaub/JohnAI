@@ -10,6 +10,7 @@ import { createAudioController } from './src/audio-recorder.js';
 import { renderThoughtsHistory, renderAssistantResponse } from './src/ui.js';
 import { escapeHtml } from './src/utils.js';
 import { createSettingsPanel } from './src/settings-panel.js';
+import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -204,6 +205,33 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!audioBlob || audioBlob.size < 100) {
         responseContent.innerHTML = `<span style="color: #f59e0b;">⚠️ Enregistrement trop court, rien n'a été transcrit.</span>`;
         return;
+      }
+
+      // Prefer on-device Whisper (whisper.cpp via Tauri) when available: no network
+      // round-trip, uses the Mac's own hardware. Falls back to the server otherwise
+      // (Android PWA has no Tauri runtime, or local transcription failed).
+      if (isTauriRuntime()) {
+        try {
+          if (!(await isLocalModelReady())) {
+            responseContent.innerHTML = `<span style="color: #06b6d4;">Téléchargement du modèle Whisper local (une seule fois)...</span>`;
+            await downloadLocalModel((progress) => {
+              if (progress.total > 0) {
+                const pct = Math.round((progress.downloaded / progress.total) * 100);
+                responseContent.innerHTML = `<span style="color: #06b6d4;">Téléchargement du modèle Whisper local... ${pct}%</span>`;
+              }
+            });
+          }
+
+          responseContent.innerHTML = `<span style="color: #06b6d4;">Transcription locale en cours...</span>`;
+          const localText = await transcribeLocally(audioBlob);
+          if (localText) {
+            await sendPrompt(localText);
+            return;
+          }
+          console.warn("Transcription locale vide, repli sur le serveur");
+        } catch (e) {
+          console.warn("Échec transcription locale, repli sur le serveur:", e);
+        }
       }
 
       responseContent.innerHTML = `<span style="color: #06b6d4;">Transcription de votre note vocale en cours...</span>`;
