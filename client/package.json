@@ -5,7 +5,7 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "build": "mkdir -p dist/src && cp index.html styles.css app.js manifest.json dist/ && cp src/*.js dist/src/",
+    "build": "mkdir -p dist/src && cp index.html styles.css app.js manifest.json dist/ && cp $(ls src/*.js | grep -v '\\.test\\.js$') dist/src/",
     "dev": "npm run build && python3 -m http.server 8080 --directory .",
     "tauri": "npm run build && tauri",
     "test": "vitest run"

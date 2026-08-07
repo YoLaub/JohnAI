@@ -1,6 +1,12 @@
 import os
 import json
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Loaded before any internal import below: security.py, model_router.py etc. all
+# read their config from os.getenv() at import time.
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -69,12 +75,12 @@ async def get_memory_history():
 
 
 # Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 whisper_model = None
 try:
     from faster_whisper import WhisperModel
-    # Using 'base' model for ultrafast transcription in French
-    whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
-    print("✓ Moteur Whisper Local Speech-to-Text chargé avec succès !")
+    whisper_model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
+    print(f"✓ Moteur Whisper Local Speech-to-Text ({WHISPER_MODEL_SIZE}) chargé avec succès !")
 except Exception as e:
     print("Whisper local non chargé:", e)
 
@@ -103,7 +109,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
     transcribed_text = ""
     if whisper_model and file_size > 200:
         try:
-            segments, info = whisper_model.transcribe(file_location, language="fr", beam_size=5)
+            segments, info = whisper_model.transcribe(
+                file_location, language="fr", beam_size=5, vad_filter=True
+            )
             transcribed_text = " ".join([segment.text for segment in segments]).strip()
             print(f"✨ Transcription Whisper réussie: '{transcribed_text}'")
         except Exception as err:

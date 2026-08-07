@@ -65,9 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDashboardOpen) {
       try {
         const data = await fetchMemoryHistory();
-        if (data) renderThoughtsHistory(thoughtsList, data.history || []);
+        renderThoughtsHistory(thoughtsList, data.history || []);
       } catch (e) {
         console.warn("Erreur de récupération mémoire:", e);
+        thoughtsList.innerHTML = `<div class="thought-card"><div class="thought-text" style="color:#ef4444;">⚠️ ${escapeHtml(e.message)}</div></div>`;
       }
     }
   });
@@ -184,9 +185,13 @@ document.addEventListener('DOMContentLoaded', () => {
       promptInput.value = text;
     },
     onAudioReady: async (audioBlob) => {
-      if (!audioBlob || audioBlob.size < 100) return;
-
       responsePanel.classList.remove('hidden');
+
+      if (!audioBlob || audioBlob.size < 100) {
+        responseContent.innerHTML = `<span style="color: #f59e0b;">⚠️ Enregistrement trop court, rien n'a été transcrit.</span>`;
+        return;
+      }
+
       responseContent.innerHTML = `<span style="color: #06b6d4;">Transcription de votre note vocale en cours...</span>`;
 
       try {
@@ -194,9 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = data && data.text || "";
         if (text) {
           await sendPrompt(text);
+        } else {
+          responseContent.innerHTML = `<span style="color: #f59e0b;">⚠️ Le serveur n'a renvoyé aucun texte transcrit.</span>`;
         }
       } catch (e) {
         console.warn("Erreur transcription serveur:", e);
+        responseContent.innerHTML = `<span style="color: #ef4444;">❌ Échec de la transcription : ${escapeHtml(e.message)}</span>`;
       }
     },
     onPermissionDenied: () => {

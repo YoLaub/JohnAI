@@ -20,8 +20,10 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   dans `client/src-tauri`) — à vérifier à chaque changement touchant l'audio natif.
 - **Toute route serveur non publique exige la clé API** (`API_KEY` côté serveur,
   header `X-API-Key` ou `?api_key=` pour le websocket) — voir Règles métier clés.
-  Le client a `API_KEY = ""` en dur dans `client/src/config.js` (`_à décider_` : sortir
-  vers une vraie config avant tout déploiement réel).
+  Le client a une valeur réelle en dur dans `client/src/config.js` (`_à décider_` : sortir
+  vers une vraie config avant tout déploiement réel — ne jamais commit une future rotation
+  de cette clé en clair une fois un vrai déploiement en jeu). Doit être identique à l'`API_KEY`
+  du serveur, sinon toute route protégée échoue en 401 silencieusement (voir Journal d'erreurs).
 
 ## Décisions techniques
 - **Client** : Tauri 2.0 (Rust natif) + JS vanilla ESM, pas de framework front.
@@ -72,12 +74,16 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   jamais codé en dur côté client.
 - Auth : `require_api_key` (dépendance FastAPI, `server/main.py`) protège `/api/memory/history`,
   `/api/upload`, `/api/transcribe` et `/ws`. `/api/health` reste public (monitoring).
-  Sans `API_KEY` définie côté serveur, tout est refusé — jamais de mode "ouvert" par défaut.
+  Sans `API_KEY` définie côté serveur (vide compris), tout est refusé — jamais de mode
+  "ouvert" par défaut. Config locale : `server/.env` (copié depuis `server/.env.example`,
+  jamais commité — voir `.gitignore`), chargé par `python-dotenv` en tout premier dans
+  `server/main.py`, avant les imports internes qui lisent `os.getenv()` à l'import.
 - Upload : les noms de fichiers sont assainis par `sanitize_filename()` avant d'atteindre le
   disque (`server/main.py`) — ne jamais réutiliser `file.filename` brut dans un chemin.
 
 ## Commandes
-- Serveur : `python3 -m pip install -r server/requirements.txt` puis
+- Serveur : `cp server/.env.example server/.env` (une fois, puis remplir `API_KEY`) puis
+  `python3 -m pip install -r server/requirements.txt` puis
   `python3 -m uvicorn server.main:app --host 0.0.0.0 --port 8000`
 - Serveur tests : `python3 -m pytest server/tests` (depuis la racine du repo)
 - Client dev : `cd client && npm install && npx @tauri-apps/cli dev`

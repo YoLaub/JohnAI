@@ -20,6 +20,9 @@ __pycache__/
 .venv/
 venv/
 
+# Secrets
+server/.env
+
 # Local Data & DB
 server/data/
 server/uploads/
