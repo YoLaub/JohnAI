@@ -20,17 +20,27 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   dans `client/src-tauri`) — à vérifier à chaque changement touchant l'audio natif.
 - **Toute route serveur non publique exige la clé API** (`API_KEY` côté serveur,
   header `X-API-Key` ou `?api_key=` pour le websocket) — voir Règles métier clés.
-  Le client a une valeur réelle en dur dans `client/src/config.js` (`_à décider_` : sortir
-  vers une vraie config avant tout déploiement réel — ne jamais commit une future rotation
-  de cette clé en clair une fois un vrai déploiement en jeu). Doit être identique à l'`API_KEY`
-  du serveur, sinon toute route protégée échoue en 401 silencieusement (voir Journal d'erreurs).
+  **Ne plus jamais mettre de vraie clé en dur dans `client/src/config.js`** : le repo
+  GitHub (`YoLaub/JohnAI`) est **public**, une clé y a déjà fuité par le passé (incident
+  du 2026-08-07, clé rotée depuis) et reste visible dans l'historique git pour toujours.
+  La config réelle (URL serveur + clé API) vit exclusivement dans `localStorage`, réglée
+  par appareil via le panneau réglages (`client/src/settings-panel.js`) — jamais commitée.
+  Client et serveur doivent avoir la même clé, sinon toute route protégée échoue en 401
+  silencieusement côté fetch (voir Journal d'erreurs) — le panneau réglages n'empêche pas
+  une faute de frappe, à vérifier en cas de 401 inattendu.
 
 ## Décisions techniques
 - **Client** : Tauri 2.0 (Rust natif) + JS vanilla ESM, pas de framework front.
   `client/app.js` est la composition root (DOM refs, état applicatif, wiring des
   event listeners) — le comportement vit dans `client/src/` :
-  - `config.js` : `API_KEY`, URLs serveur (HTTP + WS)
-  - `api.js` : appels réseau (`fetchMemoryHistory`, `uploadFile`, `transcribeAudio`)
+  - `config.js` : `getServerConfig()`/`saveServerConfig()` — URL serveur + clé API lues
+    depuis `localStorage` (clé `johnai.server-config`), défaut = `https://johnai.john-world.store`
+    avec `apiKey: ""`. Aucune valeur secrète en dur ici (voir Contraintes).
+  - `settings-panel.js` : `createSettingsPanel()` — panneau réglages (bouton engrenage),
+    sauvegarde en localStorage puis `location.reload()` (pas de réactivité runtime,
+    volontairement simple).
+  - `api.js` : appels réseau (`fetchMemoryHistory`, `uploadFile`, `transcribeAudio`),
+    lit `getServerConfig()` à chaque appel (jamais une valeur figée à l'import).
   - `chat-socket.js` : `createChatSocket()` — WebSocket + reconnect loop
   - `audio-recorder.js` : `createAudioController()` — micro, MediaRecorder, SpeechRecognition
   - `waveform.js` : `createWaveformRenderer()` — visualiseur canvas

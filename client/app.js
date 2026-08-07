@@ -9,6 +9,7 @@ import { createWaveformRenderer } from './src/waveform.js';
 import { createAudioController } from './src/audio-recorder.js';
 import { renderThoughtsHistory, renderAssistantResponse } from './src/ui.js';
 import { escapeHtml } from './src/utils.js';
+import { createSettingsPanel } from './src/settings-panel.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -36,6 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const modeIcon = document.getElementById('modeIcon');
   const modeLabel = document.getElementById('modeLabel');
   const btnCloseApp = document.getElementById('btnCloseApp');
+  const btnSettings = document.getElementById('btnSettings');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const settingsServerUrl = document.getElementById('settingsServerUrl');
+  const settingsApiKey = document.getElementById('settingsApiKey');
+  const btnSaveSettings = document.getElementById('btnSaveSettings');
+
+  createSettingsPanel({
+    panel: settingsPanel,
+    urlInput: settingsServerUrl,
+    keyInput: settingsApiKey,
+    btnToggle: btnSettings,
+    btnSave: btnSaveSettings,
+  });
 
   // Native Tauri Window Dragging on Mouse Down
   function triggerWindowDrag() {

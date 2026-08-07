@@ -1,4 +1,4 @@
-import { SERVER_WS_URL } from './config.js';
+import { getServerConfig } from './config.js';
 
 /** WebSocket connection to the JohnAi server, with an automatic reconnect loop. */
 export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError }) {
@@ -6,7 +6,7 @@ export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError }
 
   function connect() {
     try {
-      ws = new WebSocket(SERVER_WS_URL);
+      ws = new WebSocket(getServerConfig().wsUrl);
 
       ws.onopen = () => {
         console.log("Connecté au serveur VPS JohnAi");

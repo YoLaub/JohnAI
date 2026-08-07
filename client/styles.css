@@ -421,6 +421,43 @@ textarea#promptInput:focus {
   box-shadow: 0 0 18px rgba(6, 182, 212, 0.5);
 }
 
+/* Settings Panel */
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.settings-field label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.settings-field input {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.settings-field input:focus {
+  border-color: var(--border-neon-purple);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+}
+
+.settings-save-btn {
+  width: 100%;
+  height: 38px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 /* Response Panel */
 .response-panel {
   background: var(--bg-panel);
