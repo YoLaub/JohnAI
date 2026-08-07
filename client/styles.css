@@ -116,7 +116,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px 0 16px;
+  padding: 0 14px 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: none !important;
   transition: var(--transition-smooth);
@@ -246,8 +246,8 @@ html, body {
 }
 
 .icon-btn {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   border-radius: 50%;
   border: none;
@@ -261,8 +261,8 @@ html, body {
 }
 
 .icon-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
 }
 
 .icon-btn:hover {
