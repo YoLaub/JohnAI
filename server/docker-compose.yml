@@ -16,6 +16,10 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434
       - GENERAL_MODEL=gemma3:12b
       - CODER_MODEL=qwen2.5-coder:14b
+      # Required: shared secret every device must send (X-API-Key header, or
+      # ?api_key= for the websocket). Server refuses every non-public route
+      # without it. Set a real value in Coolify's env vars, never commit one.
+      - API_KEY=${API_KEY}
     volumes:
       - johnai_data:/app/data
 

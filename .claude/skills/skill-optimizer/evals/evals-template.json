@@ -1,0 +1,79 @@
+{
+  "_comment": "Template eval set pour skill-optimizer. Duplique ce fichier dans optimization-workspace/ avant utilisation.",
+  "skill_name": "nom-du-skill-à-optimiser",
+  "version_baseline": "chemin/vers/SKILL.md",
+  "created_at": "YYYY-MM-DD",
+  "evals": [
+    {
+      "id": 1,
+      "type": "nominal",
+      "description": "Cas principal — flux standard",
+      "prompt": "Prompt tel que l'utilisateur le taperait réellement",
+      "rubric": {
+        "criteres": [
+          {
+            "nom": "Complétude",
+            "description": "Tous les livrables attendus sont présents",
+            "poids": 3
+          },
+          {
+            "nom": "Précision",
+            "description": "Les informations sont exactes et non hallucinées",
+            "poids": 2
+          },
+          {
+            "nom": "Structure",
+            "description": "Le format de sortie correspond au template du skill",
+            "poids": 2
+          },
+          {
+            "nom": "Compacité",
+            "description": "Pas de redondance, pas de remplissage inutile",
+            "poids": 1
+          }
+        ],
+        "score_max": 8,
+        "seuil_succes": 6
+      }
+    },
+    {
+      "id": 2,
+      "type": "limite",
+      "description": "Cas limite — entrée ambiguë ou incomplète",
+      "prompt": "Prompt avec information manquante ou ambiguë",
+      "rubric": {
+        "criteres": [
+          {
+            "nom": "Gestion de l'ambiguïté",
+            "description": "L'agent demande une clarification ou fait un choix explicite justifié",
+            "poids": 3
+          },
+          {
+            "nom": "Ne pas halluciner",
+            "description": "L'agent ne comble pas les lacunes avec des fictions",
+            "poids": 3
+          }
+        ],
+        "score_max": 6,
+        "seuil_succes": 5
+      }
+    },
+    {
+      "id": 3,
+      "type": "regression",
+      "description": "Cas de régression — ce qui doit absolument rester intact",
+      "prompt": "Prompt qui testait un comportement qui fonctionnait bien avant",
+      "rubric": {
+        "criteres": [
+          {
+            "nom": "Comportement préservé",
+            "description": "Le comportement attendu est identique à la baseline",
+            "poids": 3
+          }
+        ],
+        "score_max": 3,
+        "seuil_succes": 3
+      }
+    }
+  ]
+}

@@ -1,16 +1,21 @@
-import asyncio
 import os
 import json
-import re
-from typing import List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
+from datetime import datetime
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
 
 try:
     from server.database import init_db, save_message, get_recent_history, save_memory_fact
+    from server.security import require_api_key, check_websocket_api_key, sanitize_filename
+    from server.model_router import is_code_request, choose_model
+    from server.providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
+    from server.connection_manager import ConnectionManager
 except ModuleNotFoundError:
     from database import init_db, save_message, get_recent_history, save_memory_fact
+    from security import require_api_key, check_websocket_api_key, sanitize_filename
+    from model_router import is_code_request, choose_model
+    from providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
+    from connection_manager import ConnectionManager
 
 app = FastAPI(
     title="JohnAi VPS Central Server",
@@ -18,10 +23,14 @@ app = FastAPI(
     version="1.1.0"
 )
 
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    # No cookies/session are used — auth is a bearer-style API key header/query
+    # param, so credentialed CORS (which forbids a wildcard origin anyway) isn't needed.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,66 +41,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# Preferred Local Models
-GENERAL_MODEL = os.getenv("GENERAL_MODEL", "gemma3:12b")
-CODER_MODEL = os.getenv("CODER_MODEL", "qwen2.5-coder:14b")
-GEMINI_MODEL = "gemini-2.5-flash"
-
-CODE_KEYWORDS = [
-    r"\bcode\b", r"\bcomposant\b", r"\bfonction\b", r"\bscript\b", r"\bhtml\b", r"\bcss\b",
-    r"\bjs\b", r"\bjavascript\b", r"\btypescript\b", r"\bpython\b", r"\breact\b", r"\bvue\b",
-    r"\bfastapi\b", r"\btauri\b", r"\brust\b", r"\bsql\b", r"\bbug\b", r"\bdebug\b",
-    r"\brefactor\b", r"\bapi\b", r"\bjson\b", r"\bsnippet\b", r"\berreur\b", r"\balgorithme\b",
-    r"programme", r"écris un code", r"créer un composant", r"générer du code"
-]
-
-def is_code_request(prompt: str, files: List[str]) -> bool:
-    prompt_lower = prompt.lower()
-    for kw in CODE_KEYWORDS:
-        if re.search(kw, prompt_lower):
-            return True
-    code_exts = {".js", ".ts", ".html", ".css", ".py", ".rs", ".json", ".sql", ".sh", ".c", ".cpp"}
-    if any(os.path.splitext(f)[1].lower() in code_exts for f in files):
-        return True
-    return False
 
 @app.on_event("startup")
 def startup_event():
     init_db()
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-
-    async def send_json(self, message: dict, websocket: WebSocket):
-        try:
-            await websocket.send_json(message)
-        except Exception as e:
-            print("Erreur d'envoi WebSocket:", e)
 
 manager = ConnectionManager()
 
-async def get_available_ollama_models() -> List[str]:
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{OLLAMA_URL}/api/tags")
-            if res.status_code == 200:
-                return [m["name"] for m in res.json().get("models", [])]
-    except Exception:
-        pass
-    return []
 
 @app.get("/api/health")
 async def health_check():
-    models = await get_available_ollama_models()
+    models = await get_available_ollama_models(OLLAMA_URL)
     return {
         "status": "online",
         "service": "JohnAi VPS Engine (Hybrid Local + Gemini Cloud)",
@@ -101,9 +62,11 @@ async def health_check():
         "active_clients": len(manager.active_connections)
     }
 
-@app.get("/api/memory/history")
+
+@app.get("/api/memory/history", dependencies=[Depends(require_api_key)])
 async def get_memory_history():
     return {"history": get_recent_history(limit=50)}
+
 
 # Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
 whisper_model = None
@@ -115,23 +78,27 @@ try:
 except Exception as e:
     print("Whisper local non chargé:", e)
 
-@app.post("/api/upload")
+
+@app.post("/api/upload", dependencies=[Depends(require_api_key)])
 async def upload_document(file: UploadFile = File(...)):
-    file_location = os.path.join(UPLOAD_DIR, file.filename)
+    safe_filename = sanitize_filename(file.filename)
+    file_location = os.path.join(UPLOAD_DIR, safe_filename)
     with open(file_location, "wb+") as file_object:
         file_object.write(await file.read())
-    return {"filename": file.filename, "status": "uploaded", "size_bytes": os.path.getsize(file_location)}
+    return {"filename": safe_filename, "status": "uploaded", "size_bytes": os.path.getsize(file_location)}
 
-@app.post("/api/transcribe")
+
+@app.post("/api/transcribe", dependencies=[Depends(require_api_key)])
 async def transcribe_audio(file: UploadFile = File(...)):
     """Transcribe recorded voice note audio blob using local Whisper engine"""
-    file_location = os.path.join(UPLOAD_DIR, file.filename)
+    safe_filename = sanitize_filename(file.filename)
+    file_location = os.path.join(UPLOAD_DIR, safe_filename)
     content = await file.read()
     with open(file_location, "wb+") as file_object:
         file_object.write(content)
-    
+
     file_size = os.path.getsize(file_location)
-    print(f"🎙️ Audio reçu pour transcription: {file.filename} ({file_size} octets)")
+    print(f"🎙️ Audio reçu pour transcription: {safe_filename} ({file_size} octets)")
 
     transcribed_text = ""
     if whisper_model and file_size > 200:
@@ -144,57 +111,31 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
     if not transcribed_text:
         transcribed_text = f"Note vocale enregistrée le {datetime.now().strftime('%H:%M')}"
-        
+
     return {
         "text": transcribed_text,
-        "filename": file.filename,
+        "filename": safe_filename,
         "status": "transcribed"
     }
 
-async def stream_from_gemini(messages_payload: list, api_key: str):
-    """Stream response from Google Gemini 2.5 Flash REST API"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key={api_key}&alt=sse"
-    
-    # Format messages for Gemini API
-    contents = []
-    for msg in messages_payload:
-        role = "user" if msg["role"] == "user" else "model"
-        if msg["role"] == "system":
-            contents.append({"role": "user", "parts": [{"text": f"SYSTEM INSTRUCTION: {msg['content']}"}]})
-            contents.append({"role": "model", "parts": [{"text": "Compris."}]})
-        else:
-            contents.append({"role": role, "parts": [{"text": msg["content"]}]})
-
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        async with client.stream("POST", url, json={"contents": contents}) as response:
-            if response.status_code == 200:
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
-                        if data_str:
-                            try:
-                                json_data = json.loads(data_str)
-                                candidates = json_data.get("candidates", [])
-                                if candidates:
-                                    parts = candidates[0].get("content", {}).get("parts", [])
-                                    for part in parts:
-                                        if "text" in part:
-                                            yield part["text"]
-                            except Exception:
-                                pass
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    supplied_key = websocket.query_params.get("api_key", "")
+    if not check_websocket_api_key(supplied_key):
+        await websocket.close(code=1008)  # policy violation
+        return
+
     await manager.connect(websocket)
-    
+
     try:
         while True:
             data = await websocket.receive_text()
             payload = json.loads(data)
             user_content = payload.get("content", "").strip()
             files = payload.get("files", [])
-            device_type = payload.get("device_type", "desktop") # desktop / android / windows / mac
-            use_cloud = payload.get("use_cloud", False) # explicit trigger for cloud
+            device_type = payload.get("device_type", "desktop")  # desktop / android / windows / mac
+            use_cloud = payload.get("use_cloud", False)  # explicit trigger for cloud
 
             if not user_content and not files:
                 continue
@@ -213,6 +154,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     "full_text": "✓ **Pensée enregistrée dans votre mémoire centralisée** 📝"
                 }, websocket)
                 continue
+
+            recent_context = get_recent_history(limit=20)
             messages_payload = [
                 {
                     "role": "system",
@@ -220,57 +163,33 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             ] + recent_context
 
-            available_models = await get_available_ollama_models()
+            available_models = await get_available_ollama_models(OLLAMA_URL)
             requires_code = is_code_request(user_content, files)
 
-            # Determine Provider & Model
-            use_gemini = (use_cloud or device_type == "android" or len(available_models) == 0) and bool(GEMINI_API_KEY)
-
-            if use_gemini:
-                selected_model = GEMINI_MODEL
-                mode_label = "Google Gemini 2.5 Flash ⚡ (Cloud)"
-            elif requires_code and CODER_MODEL in available_models:
-                selected_model = CODER_MODEL
-                mode_label = "Mode Code 💻 (Local)"
-            elif GENERAL_MODEL in available_models:
-                selected_model = GENERAL_MODEL
-                mode_label = "Gemma 3 ✦ (Local)"
-            elif available_models:
-                selected_model = available_models[0]
-                mode_label = f"{selected_model} (Local)"
-            elif GEMINI_API_KEY:
-                selected_model = GEMINI_MODEL
-                mode_label = "Google Gemini ⚡ (Cloud)"
-            else:
-                selected_model = "JohnAi Engine"
-                mode_label = "Mode Secours"
+            choice = choose_model(
+                use_cloud=use_cloud,
+                device_type=device_type,
+                requires_code=requires_code,
+                available_models=available_models,
+                gemini_api_key=GEMINI_API_KEY,
+            )
 
             await manager.send_json({
                 "type": "status",
-                "content": f"JohnAi [{mode_label}] réfléchit..."
+                "content": f"JohnAi [{choice.label}] réfléchit..."
             }, websocket)
 
             accumulated_response = ""
 
             try:
-                if use_gemini:
-                    async for chunk in stream_from_gemini(messages_payload, GEMINI_API_KEY):
-                        accumulated_response += chunk
-                        await manager.send_json({"type": "stream", "chunk": accumulated_response}, websocket)
+                if choice.provider == "gemini":
+                    stream = stream_from_gemini(messages_payload, GEMINI_API_KEY)
                 else:
-                    async with httpx.AsyncClient(timeout=120.0) as client:
-                        async with client.stream(
-                            "POST",
-                            f"{OLLAMA_URL}/api/chat",
-                            json={"model": selected_model, "messages": messages_payload, "stream": True}
-                        ) as response:
-                            if response.status_code == 200:
-                                async for line in response.aiter_lines():
-                                    if line:
-                                        chunk_data = json.loads(line)
-                                        chunk_text = chunk_data.get("message", {}).get("content", "")
-                                        accumulated_response += chunk_text
-                                        await manager.send_json({"type": "stream", "chunk": accumulated_response}, websocket)
+                    stream = stream_from_ollama(OLLAMA_URL, choice.model, messages_payload)
+
+                async for chunk in stream:
+                    accumulated_response += chunk
+                    await manager.send_json({"type": "stream", "chunk": accumulated_response}, websocket)
 
             except Exception as err:
                 print("Inference Exception:", err)
@@ -280,12 +199,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             if accumulated_response:
-                save_message(device_type=device_type, role="assistant", content=accumulated_response, model_used=selected_model)
+                save_message(device_type=device_type, role="assistant", content=accumulated_response, model_used=choice.model)
 
             await manager.send_json({"type": "done", "full_text": accumulated_response}, websocket)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
 
 if __name__ == "__main__":
     import uvicorn

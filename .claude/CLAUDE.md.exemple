@@ -1,0 +1,31 @@
+# CLAUDE.md — Conventions du repo CRM_TEAM
+
+## Contexte
+CRM pour un groupement d'auto-entrepreneurs. Base clients partagée, devis/factures
+**multi-entité** (chaque `Member` a son SIRET, sa numérotation, ses mentions légales),
+prospection via scraping (service `apps/scraper`).
+
+## Méthode obligatoire
+- **TDD** : écrire les tests AVANT le code. `apps/crm` → Vitest ; `apps/scraper` → pytest.
+- **SOLID/DRY** : logique métier dans `apps/crm/src/services/` (fonctions pures, testables
+  sans HTTP). Les routes API et composants UI ne font qu'orchestrer.
+- **Git** : `main` ← `dev` ← `feature/xx`. Jamais de commit direct sur main/dev.
+  Tests verts avant merge dans `dev`.
+- **Index OKF** : à la fin de chaque feature, créer/mettre à jour `docs/index/<feature>.md`
+  (entête YAML : id, feature, branch, status, files, tests, decisions ; corps ≤ 15 lignes).
+  Lire `docs/index/` en début de session au lieu de relire tout le code.
+- **Rétro continue** : noter dans `docs/index/retro.md` ce qui a fonctionné ou non.
+- **MCP partout** : chaque module CRUD expose ses opérations comme tools MCP via le
+  registre `apps/crm/src/mcp/registry.ts` (servi sur `/api/mcp`). Les tools MCP et les
+  routes API appellent les MÊMES services — jamais de logique dupliquée dans un tool.
+
+## Commandes
+- CRM : `cd apps/crm && npm test` (Vitest), `npm run dev`, `npx prisma migrate dev`
+- Scraper : `cd apps/scraper && .venv/Scripts/python -m pytest`
+- Base : `docker compose up -d` (PostgreSQL 16 sur le port 5432)
+
+## Règles métier clés
+- Numérotation devis/factures : séquentielle **par membre et par année** (ex. `FA-2026-0001`),
+  jamais de trou ni de doublon — exigence légale française.
+- Mention obligatoire micro-entreprise : « TVA non applicable, art. 293 B du CGI ».
+- Dédoublonnage import prospects : matching par SIREN puis email.

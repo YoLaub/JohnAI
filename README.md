@@ -77,6 +77,7 @@ npx @tauri-apps/cli dev
    PORT=8000
    OLLAMA_URL=http://localhost:11434
    GEMINI_API_KEY=votre_cle_google_ai_studio  # Pour Android & Mode Cloud
+   API_KEY=un_secret_partage_fort  # Obligatoire : protège toutes les routes non publiques
    ```
 4. Déployez ! Coolify générera l'URL sécurisée HTTPS (`https://johnai.votre-domaine.com`).
 

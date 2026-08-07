@@ -5,14 +5,17 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html styles.css app.js manifest.json dist/",
+    "build": "mkdir -p dist/src && cp index.html styles.css app.js manifest.json dist/ && cp src/*.js dist/src/",
     "dev": "npm run build && python3 -m http.server 8080 --directory .",
-    "tauri": "npm run build && tauri"
+    "tauri": "npm run build && tauri",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.1.0"
+    "@tauri-apps/cli": "^2.1.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^4.1.10"
   }
 }

@@ -1,0 +1,14 @@
+/* theme.template.css — fragment d'OVERRIDE d'accent par présentation.
+   Le skill copie ce fichier dans le dossier de travail (ex. accent.css),
+   remplit l'accent + accent-ink (et au plus la police), puis appelle
+   build-theme.sh qui produit le theme.css final :
+       en-tête @theme + tokens.css + layouts.css + CE fragment (en dernier → gagne).
+   INTERDIT : modifier l'échelle typo, la grille d'espacement ou les contrastes.
+   Ce fragment ne contient QUE le bloc :root ci-dessous. */
+:root {
+  /* >>> SEULES LIGNES MODIFIABLES PAR LE THÈME <<< */
+  --accent: /*ACCENT*/ #2e6db4;
+  --accent-ink: /*ACCENT_INK*/ #ffffff;
+  /* Ton (optionnel) : décommenter au plus une variante selon l'intake.
+     --font-sans: Georgia, "Times New Roman", serif;   (ton éditorial) */
+}

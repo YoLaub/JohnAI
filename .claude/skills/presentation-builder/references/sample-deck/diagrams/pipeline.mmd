@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant U as Utilisateur
+    participant S as Skill
+    participant M as Marp CLI
+    participant G as Critique
+
+    U->>S: intake (thème + données)
+    S->>S: storyboard assertions
+    S->>M: build theme.css
+    M-->>S: theme OK
+    S->>M: export PDF/PPTX
+    M-->>S: fichiers produits
+    S->>G: vérification conformité
+    G-->>U: rapport CONFORME

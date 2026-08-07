@@ -1,0 +1,28 @@
+/* tokens.css — valeurs verrouillées. Le thème ne surcharge QUE --accent et le ton. */
+:root {
+  /* Couleur */
+  --bg: #ffffff;
+  --ink: #1f2937;      /* anthracite, contraste AA sur blanc */
+  --muted: #5b6675;
+  --accent: #2e6db4;   /* surchargé par le thème bespoke */
+  --accent-ink: #ffffff;
+
+  /* Typographie */
+  --font-sans: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+  --fs-title: 52px;       /* couverture / section */
+  --fs-assertion: 34px;   /* titre-assertion d'une diapo de contenu */
+  --fs-body: 24px;        /* puces rares, légendes longues */
+  --fs-caption: 18px;     /* légendes d'image */
+  --lh-tight: 1.15;
+  --lh-body: 1.4;
+
+  /* Espacement (échelle géométrique, une seule grille) */
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 20px;
+  --space-4: 32px;
+  --space-5: 52px;
+  --space-6: 84px;
+  --slide-pad: var(--space-5);
+}

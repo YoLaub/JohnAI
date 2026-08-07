@@ -1,0 +1,7 @@
+/* accent.css — override d'accent pour le deck d'exemple (démo design system).
+   Généré depuis theme.template.css. Ne modifier que --accent et --accent-ink. */
+:root {
+  /* >>> SEULES LIGNES MODIFIABLES PAR LE THÈME <<< */
+  --accent: #1e6f5c;
+  --accent-ink: #ffffff;
+}
