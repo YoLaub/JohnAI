@@ -57,9 +57,10 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   - `server/connection_manager.py` : `ConnectionManager`
   - `server/memory_facts.py` : détection des commandes "retiens que" / "oublie que"
   - `server/database.py` : mémoire SQLite (historique + faits durables)
-  - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback uniquement**
-    pour la PWA Android (pas de runtime Tauri) ou si la transcription locale échoue.
-- **STT local (prioritaire sur Mac/Windows)** : `client/src-tauri/src/whisper_stt.rs`
+  - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback** pour la PWA
+    Android servie via navigateur, et pour l'APK Android (whisper-rs exclu de ce
+    target, voir ci-dessous), ou si la transcription locale échoue sur desktop.
+- **STT local (prioritaire sur Mac/Windows uniquement)** : `client/src-tauri/src/whisper_stt.rs`
   (whisper-rs/whisper.cpp, Metal+CoreML sur macOS) + `client/src/local-stt.js`
   (décodage audio → PCM mono 16kHz via Web Audio API, puis commande Tauri
   `transcribe_audio`). Modèle `ggml-small.bin` téléchargé une fois au premier usage
@@ -67,6 +68,16 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   tente le local en premier si `window.__TAURI__` existe, retombe sur le serveur
   sinon. Choisi plutôt qu'un sidecar Python (faster-whisper local) car ça compile
   directement dans le binaire Tauri existant — pas de process à gérer/lancer.
+  **`whisper-rs` est exclu du build Android** (`Cargo.toml`,
+  `cfg(not(target_os = "android"))`) : `whisper-rs-sys` 0.15 lie `ggml-blas`
+  dès que `cfg!(target_os = "macos")` est vrai dans son `build.rs` — qui reflète
+  l'OS de la machine qui compile, pas la cible, donc ça casse le cross-compile
+  macOS→Android. Bug amont, pas une régression à corriger ici.
+- **Structure crate Tauri (`client/src-tauri/`)** : `src/lib.rs` contient le
+  `tauri::Builder` (fonction `run()`, taguée `#[cfg_attr(mobile, tauri::mobile_entry_point)]`) ;
+  `src/main.rs` ne fait qu'appeler `johnai_desktop_lib::run()`. Obligatoire pour Android
+  (chargé via JNI dans une lib partagée, pas un binaire) — ne jamais remettre toute la
+  logique dans `main.rs` seul, ça casse `tauri android build`.
   _Non encore validé avec un vrai micro_ (contrainte de l'environnement de dev) —
   à tester en conditions réelles.
   - Import : chaque module interne suit le pattern `try: from server.X import ...
@@ -120,7 +131,18 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
 - Client dev : `cd client && npm install && npx @tauri-apps/cli dev`
 - Client tests : `cd client && npm test`
 - Build macOS/Windows : `cd client && npm run tauri build`
-- Build Android : `cd client && npx tauri android build`
+- Build Android : nécessite Android Studio + SDK + NDK installés, et un JDK 17-21
+  (**pas** le JBR d'Android Studio si trop récent — Gradle 8.14.3 ne supporte pas Java 25 ;
+  `brew install openjdk@21` sans sudo fonctionne). Avant de lancer, exporter dans le shell :
+  ```
+  export ANDROID_HOME="$HOME/Library/Android/sdk"
+  export NDK_HOME="$ANDROID_HOME/ndk/<version installée>"
+  export JAVA_HOME="/opt/homebrew/opt/openjdk@21"
+  export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+  ```
+  Puis (une fois, génère `client/src-tauri/gen/android/`, gitignored) :
+  `cd client && npx tauri android init`, ensuite `npx tauri android build --debug --target aarch64`.
+  APK de sortie : `client/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`.
 
 BRAIN: ~/brain/johnai
 
