@@ -72,21 +72,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // View Mode Toggle (Compact Pill vs Full Dashboard)
   let isDashboardOpen = false;
-  btnToggleView.addEventListener('click', async () => {
-    isDashboardOpen = !isDashboardOpen;
-    btnToggleView.classList.toggle('active', isDashboardOpen);
-    mobileDashboard.classList.toggle('hidden', !isDashboardOpen);
 
+  async function openDashboard() {
+    isDashboardOpen = true;
+    btnToggleView.classList.add('active');
+    mobileDashboard.classList.remove('hidden');
+    try {
+      const data = await fetchMemoryHistory();
+      renderThoughtsHistory(thoughtsList, data.history || []);
+    } catch (e) {
+      console.warn("Erreur de récupération mémoire:", e);
+      thoughtsList.innerHTML = `<div class="thought-card"><div class="thought-text" style="color:#ef4444;">⚠️ ${escapeHtml(e.message)}</div></div>`;
+    }
+  }
+
+  function closeDashboard() {
+    isDashboardOpen = false;
+    btnToggleView.classList.remove('active');
+    mobileDashboard.classList.add('hidden');
+  }
+
+  btnToggleView.addEventListener('click', () => {
     if (isDashboardOpen) {
-      try {
-        const data = await fetchMemoryHistory();
-        renderThoughtsHistory(thoughtsList, data.history || []);
-      } catch (e) {
-        console.warn("Erreur de récupération mémoire:", e);
-        thoughtsList.innerHTML = `<div class="thought-card"><div class="thought-text" style="color:#ef4444;">⚠️ ${escapeHtml(e.message)}</div></div>`;
-      }
+      closeDashboard();
+    } else {
+      openDashboard();
     }
   });
+
+  // Mobile (portrait or landscape phone): the notes journal fills the screen
+  // by default instead of waiting for a toggle tap — this is the "note-taking
+  // widget" surface, not a hidden panel.
+  const isMobileLayout = () => window.matchMedia('(max-width: 600px), (max-height: 600px)').matches;
+  if (isMobileLayout()) {
+    openDashboard();
+  }
+
+  // Same for the mic button: relocate it (same DOM node, same listeners — no
+  // duplication) into a large dedicated tap target below the pill on mobile,
+  // instead of leaving it as one small icon among six.
+  const micLauncherRow = document.getElementById('micLauncherRow');
+  function relocateMicForLayout() {
+    if (!micLauncherRow) return;
+    if (isMobileLayout()) {
+      if (btnMic.parentElement !== micLauncherRow) micLauncherRow.appendChild(btnMic);
+    } else if (btnMic.parentElement === micLauncherRow) {
+      btnSettings.parentElement.insertBefore(btnMic, btnSettings);
+    }
+  }
+  relocateMicForLayout();
+  window.addEventListener('resize', relocateMicForLayout);
 
   // App State
   let attachedFiles = [];
