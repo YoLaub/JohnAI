@@ -132,6 +132,13 @@ html, body {
   -webkit-app-region: no-drag;
 }
 
+/* Desktop: invisible wrapper, children stay direct pill-bar flex items so
+   their existing left-to-right ordering/spacing is untouched. Mobile turns
+   this into an actual flex row (see the (pointer: coarse) block below). */
+.mode-category-group {
+  display: contents;
+}
+
 .mode-toggle-btn {
   background: rgba(168, 85, 247, 0.15);
   border: 1px solid rgba(168, 85, 247, 0.35);
@@ -743,12 +750,22 @@ textarea#promptInput:focus {
     margin-left: auto;
   }
 
-  .mode-toggle-btn {
+  .mode-category-group {
+    display: flex;
     order: 3;
     flex-basis: 100%;
     justify-content: center;
+    gap: 8px;
+  }
+
+  .mode-toggle-btn {
+    justify-content: center;
     padding: 8px 12px;
     font-size: 0.85rem;
+  }
+
+  .category-btn {
+    max-width: none;
   }
 
   .action-buttons {
