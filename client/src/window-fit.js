@@ -55,12 +55,18 @@ export function startWindowAutoFit(containerEl) {
     await nextFrame();
 
     const { width, height } = measureVisibleContent(containerEl);
+    console.log(`[window-fit] mesuré ${width}x${height} (précédent: ${lastWidth}x${lastHeight})`);
     if (width === lastWidth && height === lastHeight) return;
     lastWidth = width;
     lastHeight = height;
-    tauriWindow.setSize(new LogicalSize(width, height)).catch((e) => {
-      console.warn("Impossible de redimensionner la fenêtre:", e);
-    });
+    try {
+      await tauriWindow.setSize(new LogicalSize(width, height));
+      const actual = await tauriWindow.innerSize();
+      const scale = await tauriWindow.scaleFactor();
+      console.log(`[window-fit] setSize appliqué. Taille physique réelle rapportée par l'OS: ${actual.width}x${actual.height} (scale=${scale}, attendu logique ${width}x${height} → physique ${Math.round(width*scale)}x${Math.round(height*scale)})`);
+    } catch (e) {
+      console.warn("[window-fit] Impossible de redimensionner la fenêtre:", e);
+    }
   }
 
   const observer = new ResizeObserver(() => {
