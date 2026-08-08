@@ -50,23 +50,26 @@
         <span class="status-dot active" id="statusDot" data-tauri-drag-region></span>
       </div>
 
-      <!-- Mode + Category selectors: grouped so mobile can wrap them onto
-           their own shared row without either fighting for full width
-           (see .mode-category-group in styles.css). display:contents on
-           desktop makes this wrapper invisible to the pill-bar's layout. -->
-      <div class="mode-category-group">
-        <!-- Mode Selector (Note vs Chat) -->
-        <button class="mode-toggle-btn" id="btnToggleMode" title="Changer de mode (Pensée 📝 / Chat 💬)">
-          <span id="modeIcon">📝</span>
-          <span id="modeLabel" class="mode-label">Note</span>
-        </button>
+      <!-- Mobile-only row break: forces Note+Category onto their own line
+           without wrapping them in a container (avoids relying on
+           display:contents, which has a history of being unreliable in
+           WebKit — see styles.css .row-break). No effect on desktop. -->
+      <div class="row-break row-break-1"></div>
 
-        <!-- Category Selector (applies to the next note/message sent) -->
-        <button class="mode-toggle-btn category-btn" id="btnCategory" title="Catégorie de la prochaine pensée">
-          <span>🏷️</span>
-          <span id="categoryLabel" class="mode-label">Non classé</span>
-        </button>
-      </div>
+      <!-- Mode Selector (Note vs Chat) -->
+      <button class="mode-toggle-btn" id="btnToggleMode" title="Changer de mode (Pensée 📝 / Chat 💬)">
+        <span id="modeIcon">📝</span>
+        <span id="modeLabel" class="mode-label">Note</span>
+      </button>
+
+      <!-- Category Selector (applies to the next note/message sent) -->
+      <button class="mode-toggle-btn category-btn" id="btnCategory" title="Catégorie de la prochaine pensée">
+        <span>🏷️</span>
+        <span id="categoryLabel" class="mode-label">Non classé</span>
+      </button>
+
+      <!-- Mobile-only row break, before the action buttons this time. -->
+      <div class="row-break row-break-2"></div>
 
       <!-- Quick Action Buttons -->
       <div class="action-buttons">

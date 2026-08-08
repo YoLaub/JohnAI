@@ -132,11 +132,17 @@ html, body {
   -webkit-app-region: no-drag;
 }
 
-/* Desktop: invisible wrapper, children stay direct pill-bar flex items so
-   their existing left-to-right ordering/spacing is untouched. Mobile turns
-   this into an actual flex row (see the (pointer: coarse) block below). */
-.mode-category-group {
-  display: contents;
+/* Invisible on desktop (0-size, out of flow via flex-basis:0 + no content).
+   In the mobile media query below it becomes a flex-basis:100% spacer,
+   forcing whatever comes after it onto a new row — the same effect as
+   wrapping elements in a container, without wrapping anything (avoids
+   display:contents, which has a history of unreliable behavior in WebKit
+   flex layouts — not worth the risk for something this simple). */
+.row-break {
+  flex-basis: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .mode-toggle-btn {
@@ -750,15 +756,16 @@ textarea#promptInput:focus {
     margin-left: auto;
   }
 
-  .mode-category-group {
-    display: flex;
-    order: 3;
+  .row-break {
     flex-basis: 100%;
-    justify-content: center;
-    gap: 8px;
+  }
+
+  .row-break-1 {
+    order: 3;
   }
 
   .mode-toggle-btn {
+    order: 4;
     justify-content: center;
     padding: 8px 12px;
     font-size: 0.85rem;
@@ -768,8 +775,12 @@ textarea#promptInput:focus {
     max-width: none;
   }
 
+  .row-break-2 {
+    order: 5;
+  }
+
   .action-buttons {
-    order: 4;
+    order: 6;
     flex-basis: 100%;
     justify-content: center;
     gap: 10px;

@@ -5,31 +5,23 @@
  *  on the desktop. */
 import { isTauriRuntime } from './local-stt.js';
 
-const SAFETY_MARGIN_PX = 6;
+const SAFETY_MARGIN_PX = 12;
 
-/** Sum of visible children's own size (bypasses containerEl's own
- *  width:fit-content resolution, which can under-measure: a stretched flex
- *  child's content can need more room than the fit-content width the
- *  browser settled on for the *container*, and containerEl.scrollWidth
- *  reflects that already-too-narrow box, not what the child actually needs). */
+/** Let the browser's own layout resolve the container's size (handles flex
+ *  stretch, gaps, and pseudo-elements correctly) rather than reimplementing
+ *  the box model by summing children — that approach double-counted
+ *  out-of-flow children (e.g. the absolutely-positioned drag-overlay) and
+ *  still needed the exact same margin fudging. scrollWidth/scrollHeight
+ *  naturally excludes absolutely-positioned overflow (drag-overlay's
+ *  inset:-6px) since out-of-flow elements never contribute to it. */
 function measureVisibleContent(containerEl) {
-  let maxWidth = 0;
-  let totalHeight = 0;
-  let visibleCount = 0;
-
-  for (const child of containerEl.children) {
-    if (child.offsetParent === null) continue; // display:none (hidden panels)
-    maxWidth = Math.max(maxWidth, child.scrollWidth, child.getBoundingClientRect().width);
-    totalHeight += child.getBoundingClientRect().height;
-    visibleCount++;
-  }
-
-  const gapPx = parseFloat(getComputedStyle(containerEl).rowGap) || 0;
-  totalHeight += gapPx * Math.max(0, visibleCount - 1);
+  const rect = containerEl.getBoundingClientRect();
+  const width = Math.max(containerEl.scrollWidth, rect.width);
+  const height = Math.max(containerEl.scrollHeight, rect.height);
 
   return {
-    width: Math.ceil(maxWidth) + SAFETY_MARGIN_PX,
-    height: Math.ceil(totalHeight) + SAFETY_MARGIN_PX,
+    width: Math.ceil(width) + SAFETY_MARGIN_PX,
+    height: Math.ceil(height) + SAFETY_MARGIN_PX,
   };
 }
 
