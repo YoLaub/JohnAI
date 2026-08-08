@@ -14,6 +14,7 @@ import { createCategoryPicker } from './src/category-picker.js';
 import { createReformulatePicker } from './src/reformulate-picker.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 import { startWindowAutoFit } from './src/window-fit.js';
+import { generateLocally } from './src/local-ollama.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -408,6 +409,18 @@ document.addEventListener('DOMContentLoaded', () => {
     onDone: (fullText) => {
       responsePanel.classList.remove('hidden');
       renderAssistantResponse(responseContent, fullText);
+    },
+    // Desktop Tauri client asked to generate this itself (see
+    // client/src/local-ollama.js + server/main.py's generate_locally branch).
+    // Ollama unreachable/not installed -> tell the server to fall back to Gemini.
+    onGenerateLocally: async (messages) => {
+      try {
+        const text = await generateLocally(messages);
+        chatSocket.send({ type: "local_generation_result", content: text });
+      } catch (e) {
+        console.warn("Échec génération locale, repli sur le serveur:", e);
+        chatSocket.send({ type: "request_cloud_fallback" });
+      }
     }
   });
   chatSocket.connect();
@@ -485,7 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
       mode: currentMode,
       device_type: (window.innerWidth <= 600) ? "android" : "desktop",
       files: attachedFiles.map(f => f.name),
-      category: currentCategory
+      category: currentCategory,
+      supports_local_generation: isTauriRuntime()
     });
 
     if (!sent) {

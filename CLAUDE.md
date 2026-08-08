@@ -84,9 +84,31 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
     except ModuleNotFoundError: from X import ...` — le `Dockerfile` copie le contenu
     de `server/` à plat dans `/app` et lance `uvicorn main:app`, donc les deux formes
     d'import doivent rester valables.
-- **Smart Model Router** : Gemma 3 12B (local, mode général) / Qwen 2.5 Coder 14B (local,
-  mode code) / Gemini 2.5 Flash (cloud, mode mobile) — routing dans `server/main.py`.
+- **Génération IA locale (Mac/Windows, prioritaire)** : `client/src-tauri/src/ollama.rs`
+  (`is_ollama_ready`, `ollama_generate` — commandes Tauri, `reqwest` vers
+  `http://localhost:11434`, non-streaming) + `client/src/local-ollama.js`. Même pattern
+  que le STT local (commande Rust native plutôt que `fetch()` JS, pour éviter tout
+  souci CORS avec le WebView — aucun plugin `tauri-plugin-http` nécessaire, un
+  `#[tauri::command]` custom n'a pas besoin d'entrée dans `capabilities/`).
+  Modèle unique `gemma3:12b` pour l'instant (pas de bascule automatique vers
+  Qwen Coder en local — reste une tâche de suivi si besoin). Exclu du build Android
+  comme `whisper_stt.rs` (`cfg(not(target_os = "android"))`).
+  Flux Chat/Note : le serveur garde la sauvegarde mémoire et la détection des
+  commandes (`retiens que`, `mets ça dans`...) inchangées ; seule l'étape
+  génération est déléguée. Le client envoie `supports_local_generation` dans le
+  payload WebSocket ; si vrai et `device_type != "android"`, le serveur répond
+  `{"type":"generate_locally","messages":[...]}` au lieu de générer lui-même, puis
+  attend soit `{"type":"local_generation_result","content":...}` (sauvegardé tel
+  quel), soit `{"type":"request_cloud_fallback"}` (Ollama absent/pas lancé côté
+  client → le serveur reprend la main via Gemini, contexte gardé en mémoire locale
+  à la coroutine de connexion). La reformulation (`reformulate-picker.js`) suit le
+  même principe local-d'abord mais en HTTP simple, sans toucher au serveur : repli
+  sur `POST /api/reformulate` (Gemini) si Ollama local indisponible.
 - **Hébergement** : VPS via Docker Compose + Coolify (`server/docker-compose.yml`).
+  **Le VPS n'a jamais d'Ollama local** — volontaire, pas une panne : c'est la machine
+  de l'utilisateur (via Ollama) ou un provider cloud (Gemini) qui fait tourner l'IA,
+  jamais le serveur central. Le VPS ne sert que le cloud (mobile/PWA, et repli
+  desktop si Ollama local absent) + la synchronisation mémoire.
 
 ## Méthode
 - **TDD** : tests écrits avant le code.
@@ -103,8 +125,11 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
 ## Règles métier clés
 - La mémoire canonique des pensées/notes vit dans `server/database.py` (SQLite côté VPS) —
   jamais de source de vérité locale divergente sur un device.
-- Le choix du modèle (Gemma / Qwen / Gemini) est déterminé côté serveur par le Smart Router,
-  jamais codé en dur côté client.
+- Le client Tauri desktop (Mac/Windows) appelle Ollama en local directement quand
+  disponible (voir "Génération IA locale" ci-dessus) ; le serveur reste seul
+  responsable du routage cloud (mobile toujours Gemini, ou repli desktop si Ollama
+  local absent) et de la synchronisation mémoire. Android n'a jamais de génération
+  locale — toujours Gemini via le serveur, pour préserver la batterie.
 - Auth : `require_api_key` (dépendance FastAPI, `server/main.py`) protège `/api/memory/history`,
   `/api/upload`, `/api/transcribe` et `/ws`. `/api/health` reste public (monitoring).
   Sans `API_KEY` définie côté serveur (vide compris), tout est refusé — jamais de mode

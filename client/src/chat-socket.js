@@ -1,7 +1,7 @@
 import { getServerConfig } from './config.js';
 
 /** WebSocket connection to the JohnAi server, with an automatic reconnect loop. */
-export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError }) {
+export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError, onGenerateLocally }) {
   let ws = null;
 
   function connect() {
@@ -21,6 +21,8 @@ export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError }
           onStream(data.chunk || "");
         } else if (data.type === "done") {
           onDone(data.full_text || "");
+        } else if (data.type === "generate_locally") {
+          if (onGenerateLocally) onGenerateLocally(data.messages || []);
         }
       };
 

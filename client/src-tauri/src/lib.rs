@@ -1,6 +1,9 @@
 #[cfg(not(target_os = "android"))]
 mod whisper_stt;
 
+#[cfg(not(target_os = "android"))]
+mod ollama;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -12,6 +15,8 @@ pub fn run() {
             whisper_stt::is_model_ready,
             whisper_stt::download_model,
             whisper_stt::transcribe_audio,
+            ollama::is_ollama_ready,
+            ollama::ollama_generate,
         ]);
 
     builder

@@ -235,10 +235,76 @@ async def websocket_endpoint(websocket: WebSocket):
 
     await manager.connect(websocket)
 
+    # Set by the "generate_locally" delegation below when a desktop Tauri
+    # client is asked to run inference itself (see client/src/local-ollama.js)
+    # — holds what's needed to either save the client's result or, if local
+    # Ollama isn't available there, fall back to generating server-side.
+    # Per-connection state only: safe across this coroutine's iterations.
+    pending_local_context = None
+
+    async def generate_and_reply(device_type, messages_payload, requires_code, use_cloud, user_content):
+        available_models = await get_available_ollama_models(OLLAMA_URL)
+        choice = choose_model(
+            use_cloud=use_cloud,
+            device_type=device_type,
+            requires_code=requires_code,
+            available_models=available_models,
+            gemini_api_key=GEMINI_API_KEY,
+        )
+
+        await manager.send_json({
+            "type": "status",
+            "content": f"JohnAi [{choice.label}] réfléchit..."
+        }, websocket)
+
+        accumulated_response = ""
+        try:
+            if choice.provider == "gemini":
+                stream = stream_from_gemini(messages_payload, GEMINI_API_KEY)
+            else:
+                stream = stream_from_ollama(OLLAMA_URL, choice.model, messages_payload)
+
+            async for chunk in stream:
+                accumulated_response += chunk
+                await manager.send_json({"type": "stream", "chunk": accumulated_response}, websocket)
+
+        except Exception as err:
+            print("Inference Exception:", err)
+            if not accumulated_response:
+                accumulated_response = f"JohnAi: J'ai bien reçu votre message '{user_content}'."
+            await manager.send_json({"type": "done", "full_text": accumulated_response}, websocket)
+            return
+
+        if accumulated_response:
+            save_message(device_type=device_type, role="assistant", content=accumulated_response, model_used=choice.model)
+
+        await manager.send_json({"type": "done", "full_text": accumulated_response}, websocket)
+
     try:
         while True:
             data = await websocket.receive_text()
             payload = json.loads(data)
+
+            # Desktop Tauri client's reply to a prior "generate_locally" delegation.
+            if payload.get("type") == "local_generation_result":
+                context = pending_local_context
+                pending_local_context = None
+                content = (payload.get("content") or "").strip()
+                device_type = context["device_type"] if context else "desktop"
+                if content:
+                    save_message(device_type=device_type, role="assistant", content=content, model_used="ollama-local")
+                await manager.send_json({"type": "done", "full_text": content}, websocket)
+                continue
+
+            # Client couldn't generate locally (Ollama not running/installed) —
+            # finish the still-pending request the old way (Gemini).
+            if payload.get("type") == "request_cloud_fallback":
+                context = pending_local_context
+                pending_local_context = None
+                if context:
+                    await generate_and_reply(**context)
+                continue
+
             user_content = payload.get("content", "").strip()
             files = payload.get("files", [])
             device_type = payload.get("device_type", "desktop")  # desktop / android / windows / mac
@@ -313,45 +379,24 @@ async def websocket_endpoint(websocket: WebSocket):
                 {"role": "system", "content": system_prompt}
             ] + recent_context
 
-            available_models = await get_available_ollama_models(OLLAMA_URL)
             requires_code = is_code_request(user_content, files)
 
-            choice = choose_model(
-                use_cloud=use_cloud,
-                device_type=device_type,
-                requires_code=requires_code,
-                available_models=available_models,
-                gemini_api_key=GEMINI_API_KEY,
-            )
-
-            await manager.send_json({
-                "type": "status",
-                "content": f"JohnAi [{choice.label}] réfléchit..."
-            }, websocket)
-
-            accumulated_response = ""
-
-            try:
-                if choice.provider == "gemini":
-                    stream = stream_from_gemini(messages_payload, GEMINI_API_KEY)
-                else:
-                    stream = stream_from_ollama(OLLAMA_URL, choice.model, messages_payload)
-
-                async for chunk in stream:
-                    accumulated_response += chunk
-                    await manager.send_json({"type": "stream", "chunk": accumulated_response}, websocket)
-
-            except Exception as err:
-                print("Inference Exception:", err)
-                if not accumulated_response:
-                    accumulated_response = f"JohnAi: J'ai bien reçu votre message '{user_content}'."
-                    await manager.send_json({"type": "done", "full_text": accumulated_response}, websocket)
+            # Desktop Tauri client capable of running Ollama itself (see
+            # client/src/local-ollama.js): hand it the raw context instead of
+            # generating server-side. Mobile never gets this — battery/architecture
+            # rule (CLAUDE.md) — regardless of what it claims to support.
+            if payload.get("supports_local_generation") and device_type != "android":
+                pending_local_context = {
+                    "device_type": device_type,
+                    "messages_payload": messages_payload,
+                    "requires_code": requires_code,
+                    "use_cloud": use_cloud,
+                    "user_content": user_content,
+                }
+                await manager.send_json({"type": "generate_locally", "messages": messages_payload}, websocket)
                 continue
 
-            if accumulated_response:
-                save_message(device_type=device_type, role="assistant", content=accumulated_response, model_used=choice.model)
-
-            await manager.send_json({"type": "done", "full_text": accumulated_response}, websocket)
+            await generate_and_reply(device_type, messages_payload, requires_code, use_cloud, user_content)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
