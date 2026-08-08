@@ -3,13 +3,14 @@
    Wiring only: DOM refs, event listeners and app state live here; behavior
    is implemented in client/src/*.js.
    ========================================================================== */
-import { fetchMemoryHistory, transcribeAudio, uploadFile } from './src/api.js';
+import { fetchMemoryHistory, transcribeAudio, uploadFile, setMessageCategory } from './src/api.js';
 import { createChatSocket } from './src/chat-socket.js';
 import { createWaveformRenderer } from './src/waveform.js';
 import { createAudioController } from './src/audio-recorder.js';
 import { renderThoughtsHistory, renderAssistantResponse } from './src/ui.js';
 import { escapeHtml } from './src/utils.js';
 import { createSettingsPanel } from './src/settings-panel.js';
+import { createCategoryPicker } from './src/category-picker.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 import { startWindowAutoFit } from './src/window-fit.js';
 
@@ -44,6 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const settingsServerUrl = document.getElementById('settingsServerUrl');
   const settingsApiKey = document.getElementById('settingsApiKey');
   const btnSaveSettings = document.getElementById('btnSaveSettings');
+  const btnCategory = document.getElementById('btnCategory');
+  const categoryLabel = document.getElementById('categoryLabel');
+  const categoryPanel = document.getElementById('categoryPanel');
+  const categoryChipList = document.getElementById('categoryChipList');
+  const newCategoryInput = document.getElementById('newCategoryInput');
+  const btnAddCategory = document.getElementById('btnAddCategory');
 
   createSettingsPanel({
     panel: settingsPanel,
@@ -51,6 +58,26 @@ document.addEventListener('DOMContentLoaded', () => {
     keyInput: settingsApiKey,
     btnToggle: btnSettings,
     btnSave: btnSaveSettings,
+  });
+
+  // Category selector: applies to the next note/message sent, remembered
+  // across restarts. Also reused by the journal to reclassify past notes.
+  const categoryPicker = createCategoryPicker({
+    panel: categoryPanel,
+    chipListContainer: categoryChipList,
+    newCategoryInput,
+    btnAddCategory,
+  });
+
+  let currentCategory = localStorage.getItem('johnai.current-category') || '';
+  categoryLabel.textContent = currentCategory || 'Non classé';
+
+  btnCategory.addEventListener('click', () => {
+    categoryPicker.toggle(currentCategory, (selected) => {
+      currentCategory = selected;
+      categoryLabel.textContent = selected || 'Non classé';
+      localStorage.setItem('johnai.current-category', selected);
+    });
   });
 
   // Native Tauri Window Dragging on Mouse Down
@@ -92,6 +119,23 @@ document.addEventListener('DOMContentLoaded', () => {
     btnToggleView.classList.remove('active');
     mobileDashboard.classList.add('hidden');
   }
+
+  // Post-hoc reclassification: tap a note's category badge in the journal.
+  thoughtsList.addEventListener('click', (e) => {
+    const badge = e.target.closest('.thought-category-badge[data-message-id]');
+    if (!badge) return;
+    e.stopPropagation();
+    const messageId = badge.getAttribute('data-message-id');
+    const current = badge.getAttribute('data-current-category') || '';
+    categoryPicker.toggle(current, async (selected) => {
+      try {
+        await setMessageCategory(messageId, selected);
+        await openDashboard();
+      } catch (err) {
+        console.warn("Erreur reclassement de la note:", err);
+      }
+    });
+  });
 
   btnToggleView.addEventListener('click', () => {
     if (isDashboardOpen) {
@@ -380,8 +424,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const newCard = document.createElement('div');
       newCard.className = 'thought-card';
+      const categoryBadgeHtml = currentCategory
+        ? `<span class="thought-category-badge">${escapeHtml(currentCategory)}</span>`
+        : '';
       newCard.innerHTML = `
-        <div class="thought-tag">📝 Pensée récente</div>
+        <div class="thought-tag">
+          <span>📝 Pensée récente</span>
+          ${categoryBadgeHtml}
+        </div>
         <div class="thought-text">${escapeHtml(text)}</div>
       `;
       thoughtsList.prepend(newCard);
@@ -393,7 +443,8 @@ document.addEventListener('DOMContentLoaded', () => {
       content: text,
       mode: currentMode,
       device_type: (window.innerWidth <= 600) ? "android" : "desktop",
-      files: attachedFiles.map(f => f.name)
+      files: attachedFiles.map(f => f.name),
+      category: currentCategory
     });
 
     if (!sent) {

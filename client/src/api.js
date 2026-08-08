@@ -42,3 +42,34 @@ export async function uploadFile(file) {
   });
   return assertOk(res, "Envoi du fichier");
 }
+
+export async function fetchCategories() {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/categories`, {
+    headers: { "X-API-Key": apiKey }
+  });
+  await assertOk(res, "Récupération des catégories");
+  return res.json();
+}
+
+export async function createCategory(name) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/categories`, {
+    method: "POST",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+  await assertOk(res, "Création de catégorie");
+  return res.json();
+}
+
+export async function setMessageCategory(messageId, category) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}/category`, {
+    method: "PATCH",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ category })
+  });
+  await assertOk(res, "Reclassement de la note");
+  return res.json();
+}

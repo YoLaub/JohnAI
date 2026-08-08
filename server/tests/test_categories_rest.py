@@ -50,6 +50,27 @@ def test_patch_message_category_updates_and_creates_category(client, auth_header
     assert "Bricolage" in client.get("/api/categories", headers=auth_headers).json()["categories"]
 
 
+def test_patch_message_category_empty_clears_it(client, auth_headers):
+    with client.websocket_connect(f"/ws?api_key={TEST_API_KEY}") as ws:
+        ws.send_json({"content": "note à déclasser", "device_type": "desktop", "mode": "note", "category": "Philo"})
+        ws.receive_json()
+
+    history = client.get("/api/memory/history", headers=auth_headers).json()["history"]
+    message_id = next(m["id"] for m in history if m["content"] == "note à déclasser")
+    assert next(m for m in history if m["id"] == message_id)["category"] == "Philo"
+
+    response = client.patch(
+        f"/api/memory/{message_id}/category",
+        headers=auth_headers,
+        json={"category": ""},
+    )
+    assert response.status_code == 200
+    assert response.json()["category"] is None
+
+    cleared_history = client.get("/api/memory/history", headers=auth_headers).json()["history"]
+    assert next(m for m in cleared_history if m["id"] == message_id)["category"] is None
+
+
 def test_patch_message_category_returns_error_for_unknown_id(client, auth_headers):
     response = client.patch(
         "/api/memory/999999999/category",

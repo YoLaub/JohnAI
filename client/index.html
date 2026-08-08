@@ -56,6 +56,12 @@
         <span id="modeLabel" class="mode-label">Note</span>
       </button>
 
+      <!-- Category Selector (applies to the next note/message sent) -->
+      <button class="mode-toggle-btn category-btn" id="btnCategory" title="Catégorie de la prochaine pensée">
+        <span>🏷️</span>
+        <span id="categoryLabel" class="mode-label">Non classé</span>
+      </button>
+
       <!-- Quick Action Buttons -->
       <div class="action-buttons">
         
@@ -135,6 +141,23 @@
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Category Picker (list from server + create new) -->
+    <div class="edit-panel hidden" id="categoryPanel">
+      <div class="category-chip-list" id="categoryChipList"></div>
+      <div class="settings-field">
+        <label for="newCategoryInput">Nouvelle catégorie</label>
+        <div class="input-wrapper">
+          <input type="text" id="newCategoryInput" placeholder="Ex : Voyages">
+          <button class="send-btn" id="btnAddCategory" title="Créer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 

@@ -30,4 +30,22 @@ describe('renderThoughtsHistory', () => {
     expect(container.innerHTML).not.toContain('<img');
     expect(container.innerHTML).toContain('&lt;img');
   });
+
+  it('shows a category badge on user notes that have one', () => {
+    renderThoughtsHistory(container, [{ id: 42, role: 'user', content: 'idée', category: 'Projet' }]);
+    const badge = container.querySelector('.thought-category-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent.trim()).toBe('Projet');
+    expect(badge.dataset.messageId).toBe('42');
+  });
+
+  it('shows "Non classé" for uncategorized user notes, no badge for assistant replies', () => {
+    renderThoughtsHistory(container, [
+      { id: 1, role: 'user', content: 'sans catégorie', category: null },
+      { id: 2, role: 'assistant', content: 'réponse' },
+    ]);
+    const badges = container.querySelectorAll('.thought-category-badge');
+    expect(badges).toHaveLength(1);
+    expect(badges[0].textContent.trim()).toBe('Non classé');
+  });
 });

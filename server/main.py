@@ -103,10 +103,11 @@ async def post_category(payload: dict = Body(...)):
 
 @app.patch("/api/memory/{message_id}/category", dependencies=[Depends(require_api_key)])
 async def patch_message_category(message_id: int, payload: dict = Body(...)):
-    category = (payload.get("category") or "").strip()
-    if not category:
-        return {"status": "error", "detail": "category manquant"}
-    create_category(category)
+    # Empty/missing category means "clear it back to Non classé" (NULL), not an
+    # error — the picker exposes that as a real choice, not just an omission.
+    category = (payload.get("category") or "").strip() or None
+    if category:
+        create_category(category)
     updated = set_message_category(message_id, category)
     if not updated:
         return {"status": "error", "detail": "message introuvable"}
