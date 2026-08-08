@@ -103,7 +103,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mobile (portrait or landscape phone): the notes journal fills the screen
   // by default instead of waiting for a toggle tap — this is the "note-taking
   // widget" surface, not a hidden panel.
-  const isMobileLayout = () => window.matchMedia('(max-width: 600px), (max-height: 600px)').matches;
+  // Must match styles.css's breakpoint exactly: pointer type, not viewport
+  // size — a short *desktop* window (collapsed pill) isn't "mobile", and a
+  // width/height threshold can't tell the difference. See styles.css comment.
+  const isMobileLayout = () => window.matchMedia('(pointer: coarse)').matches;
   if (isMobileLayout()) {
     openDashboard();
   }

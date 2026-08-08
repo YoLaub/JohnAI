@@ -621,10 +621,15 @@ textarea#promptInput:focus {
 }
 
 /* Mobile Responsive & Android Dictaphone Mode
-   Two conditions, not just max-width: a phone in landscape is often wider than
-   600px (e.g. ~800-900px), so a width-only query misses that orientation and
-   falls back to the desktop fit-content pill floating in a mostly empty screen. */
-@media (max-width: 600px), (max-height: 600px) {
+   Detect touch devices via pointer type, not viewport size. A width/height
+   breakpoint is wrong on both ends: a phone in landscape is often wider than
+   any reasonable px threshold (~800-900px), AND the desktop Tauri window can
+   legitimately be short (collapsed pill) without being "mobile" — a
+   max-height query previously made a short *desktop* window render this
+   entire mobile layout by mistake. `pointer: coarse` is orientation- and
+   window-size-independent: true on Android touchscreens, false on desktop
+   (mouse/trackpad) regardless of window dimensions. */
+@media (pointer: coarse) {
   html, body {
     /* No OS window transparency to blend with on mobile (unlike the desktop
        Tauri window) — a transparent body just renders flat white/blank. */
