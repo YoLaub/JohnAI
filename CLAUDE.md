@@ -122,6 +122,21 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   case-insensitive). Ces commandes court-circuitent Mode Note/Chat et priment dessus.
   Tous les faits mémorisés sont injectés dans le system prompt à chaque génération
   (`get_all_memory_facts()` dans `server/main.py`).
+- Catégorisation des notes (`conversation_history.category`, table `categories` —
+  Famille/R&D/Évolution personnelle/Philo/Projet par défaut, création libre partout,
+  idempotente insensible à la casse) : trois chemins, tous convergent vers
+  `create_category()` + `set_message_category()`/`set_category_for_last_message()`
+  dans `server/database.py`.
+  1. Présélection : bouton catégorie client (à côté du toggle Note/Chat), la valeur
+     part dans le payload WS (`category`), mémorisée par appareil (localStorage).
+  2. Vocal déterministe (`server/categorization.py`, même style que memory_facts.py) :
+     "mets ça dans X" / "classe cette note dans X" / "range ça dans X" / "catégorise
+     ça dans X" — **vérifié avant** `save_message()` : la commande elle-même ne doit
+     jamais devenir une ligne de conversation_history, sinon elle se catégoriserait
+     elle-même au lieu de la pensée précédente.
+  3. A posteriori : badge cliquable sur chaque carte du journal (`client/src/ui.js`),
+     `PATCH /api/memory/{id}/category` (catégorie vide = déclasse vers Non classé,
+     ce n'est pas une erreur).
 
 ## Commandes
 - Serveur : `cp server/.env.example server/.env` (une fois, puis remplir `API_KEY`) puis
