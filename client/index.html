@@ -144,12 +144,33 @@
     <div class="edit-panel hidden" id="editPanel">
       <div class="input-wrapper">
         <textarea id="promptInput" placeholder="Posez une question à JohnAi..." rows="2"></textarea>
+        <button class="send-btn reformulate-btn" id="btnReformulateDraft" title="Reformuler pour plus de clarté">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95-6.36-2.12 2.12M8.17 15.24l-2.12 2.12m0-12.72 2.12 2.12m9.66 9.66-2.12-2.12"/>
+          </svg>
+        </button>
         <button class="send-btn" id="btnSend" title="Envoyer (Entrée)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
         </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Reformulate Preview (before/after, requires explicit confirmation) -->
+    <div class="edit-panel hidden" id="reformulatePanel">
+      <div class="reformulate-block">
+        <span class="reformulate-label">Original</span>
+        <div class="reformulate-text" id="reformulateOriginal"></div>
+      </div>
+      <div class="reformulate-block">
+        <span class="reformulate-label">Reformulé</span>
+        <div class="reformulate-text reformulate-result" id="reformulateResult"></div>
+      </div>
+      <div class="reformulate-actions">
+        <button class="send-btn settings-save-btn" id="btnReformulateCancel">Annuler</button>
+        <button class="send-btn settings-save-btn" id="btnReformulateKeep">Garder cette version</button>
       </div>
     </div>
 

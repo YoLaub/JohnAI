@@ -48,4 +48,14 @@ describe('renderThoughtsHistory', () => {
     expect(badges).toHaveLength(1);
     expect(badges[0].textContent.trim()).toBe('Non classé');
   });
+
+  it('shows a reformulate button on user notes only, wired to the message id', () => {
+    renderThoughtsHistory(container, [
+      { id: 7, role: 'user', content: 'idée floue' },
+      { id: 8, role: 'assistant', content: 'réponse' },
+    ]);
+    const buttons = container.querySelectorAll('.thought-reformulate-btn');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].dataset.messageId).toBe('7');
+  });
 });

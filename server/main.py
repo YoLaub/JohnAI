@@ -16,6 +16,7 @@ try:
         init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
         list_categories, create_category, set_message_category, set_category_for_last_message,
+        set_message_content,
     )
     from server.security import require_api_key, check_websocket_api_key, sanitize_filename
     from server.model_router import is_code_request, choose_model
@@ -28,6 +29,7 @@ except ModuleNotFoundError:
         init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
         list_categories, create_category, set_message_category, set_category_for_last_message,
+        set_message_content,
     )
     from security import require_api_key, check_websocket_api_key, sanitize_filename
     from model_router import is_code_request, choose_model
@@ -114,6 +116,17 @@ async def patch_message_category(message_id: int, payload: dict = Body(...)):
     return {"status": "ok", "id": message_id, "category": category}
 
 
+@app.patch("/api/memory/{message_id}/content", dependencies=[Depends(require_api_key)])
+async def patch_message_content(message_id: int, payload: dict = Body(...)):
+    content = (payload.get("content") or "").strip()
+    if not content:
+        return {"status": "error", "detail": "contenu manquant"}
+    updated = set_message_content(message_id, content)
+    if not updated:
+        return {"status": "error", "detail": "message introuvable"}
+    return {"status": "ok", "id": message_id, "content": content}
+
+
 # Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 whisper_model = None
@@ -123,6 +136,52 @@ try:
     print(f"✓ Moteur Whisper Local Speech-to-Text ({WHISPER_MODEL_SIZE}) chargé avec succès !")
 except Exception as e:
     print("Whisper local non chargé:", e)
+
+
+@app.post("/api/reformulate", dependencies=[Depends(require_api_key)])
+async def reformulate_text(payload: dict = Body(...)):
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return {"status": "error", "detail": "texte manquant"}
+
+    device_type = payload.get("device_type", "desktop")
+    use_cloud = payload.get("use_cloud", False)
+
+    system_prompt = (
+        "Tu reformules la note suivante pour la rendre plus claire et correcte, "
+        "sans changer son sens ni ajouter d'information. Réponds uniquement avec "
+        "le texte reformulé, sans commentaire ni guillemets."
+    )
+    messages_payload = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": text},
+    ]
+
+    available_models = await get_available_ollama_models(OLLAMA_URL)
+    choice = choose_model(
+        use_cloud=use_cloud,
+        device_type=device_type,
+        requires_code=False,
+        available_models=available_models,
+        gemini_api_key=GEMINI_API_KEY,
+    )
+
+    reformulated = ""
+    try:
+        if choice.provider == "gemini":
+            stream = stream_from_gemini(messages_payload, GEMINI_API_KEY)
+        else:
+            stream = stream_from_ollama(OLLAMA_URL, choice.model, messages_payload)
+        async for chunk in stream:
+            reformulated += chunk
+    except Exception as err:
+        print("Reformulate Exception:", err)
+
+    reformulated = reformulated.strip()
+    if not reformulated:
+        return {"status": "error", "reformulated": text, "detail": "reformulation indisponible"}
+
+    return {"status": "ok", "reformulated": reformulated}
 
 
 @app.post("/api/upload", dependencies=[Depends(require_api_key)])

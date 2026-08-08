@@ -131,6 +131,18 @@ def set_message_category(message_id: int, category: str) -> bool:
     conn.close()
     return updated
 
+def set_message_content(message_id: int, content: str) -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE conversation_history SET content = ? WHERE id = ?",
+        (content, message_id)
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
 def set_category_for_last_message(category: str, role: str = "user") -> bool:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

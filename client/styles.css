@@ -527,6 +527,60 @@ textarea#promptInput:focus {
   font-weight: 600;
 }
 
+.reformulate-btn {
+  background: rgba(6, 182, 212, 0.15);
+  box-shadow: none;
+}
+
+.reformulate-btn:hover {
+  background: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+
+/* Reformulate Preview Panel */
+.reformulate-block {
+  margin-bottom: 10px;
+}
+
+.reformulate-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.reformulate-text {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+
+.reformulate-result {
+  border-color: rgba(6, 182, 212, 0.3);
+  color: #e2f4f8;
+}
+
+.reformulate-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.reformulate-actions .settings-save-btn {
+  width: auto;
+  flex: 1;
+}
+
+#btnReformulateCancel {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Response Panel */
 .response-panel {
   background: var(--bg-panel);
@@ -694,6 +748,35 @@ textarea#promptInput:focus {
 
 .thought-category-badge:hover {
   background: rgba(245, 158, 11, 0.28);
+}
+
+.thought-tag-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thought-reformulate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent-cyan);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.thought-reformulate-btn:hover {
+  background: rgba(6, 182, 212, 0.28);
+}
+
+.thought-reformulate-btn svg {
+  width: 12px;
+  height: 12px;
 }
 
 .thought-text {

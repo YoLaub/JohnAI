@@ -3,7 +3,7 @@
    Wiring only: DOM refs, event listeners and app state live here; behavior
    is implemented in client/src/*.js.
    ========================================================================== */
-import { fetchMemoryHistory, transcribeAudio, uploadFile, setMessageCategory } from './src/api.js';
+import { fetchMemoryHistory, transcribeAudio, uploadFile, setMessageCategory, setMessageContent } from './src/api.js';
 import { createChatSocket } from './src/chat-socket.js';
 import { createWaveformRenderer } from './src/waveform.js';
 import { createAudioController } from './src/audio-recorder.js';
@@ -11,6 +11,7 @@ import { renderThoughtsHistory, renderAssistantResponse } from './src/ui.js';
 import { escapeHtml } from './src/utils.js';
 import { createSettingsPanel } from './src/settings-panel.js';
 import { createCategoryPicker } from './src/category-picker.js';
+import { createReformulatePicker } from './src/reformulate-picker.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 import { startWindowAutoFit } from './src/window-fit.js';
 
@@ -51,6 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const categoryChipList = document.getElementById('categoryChipList');
   const newCategoryInput = document.getElementById('newCategoryInput');
   const btnAddCategory = document.getElementById('btnAddCategory');
+  const btnReformulateDraft = document.getElementById('btnReformulateDraft');
+  const reformulatePanel = document.getElementById('reformulatePanel');
+  const reformulateOriginal = document.getElementById('reformulateOriginal');
+  const reformulateResult = document.getElementById('reformulateResult');
+  const btnReformulateKeep = document.getElementById('btnReformulateKeep');
+  const btnReformulateCancel = document.getElementById('btnReformulateCancel');
 
   createSettingsPanel({
     panel: settingsPanel,
@@ -67,6 +74,40 @@ document.addEventListener('DOMContentLoaded', () => {
     chipListContainer: categoryChipList,
     newCategoryInput,
     btnAddCategory,
+  });
+
+  // Reformulate: clarifies/corrects a note's text. Always shows a before/after
+  // preview and only applies the change once the user explicitly confirms.
+  const reformulatePicker = createReformulatePicker({
+    panel: reformulatePanel,
+    originalEl: reformulateOriginal,
+    resultEl: reformulateResult,
+    btnKeep: btnReformulateKeep,
+    btnCancel: btnReformulateCancel,
+  });
+
+  btnReformulateDraft.addEventListener('click', () => {
+    reformulatePicker.open(promptInput.value, (reformulated) => {
+      promptInput.value = reformulated;
+    });
+  });
+
+  // Post-hoc reformulation: tap a note's reformulate button in the journal.
+  thoughtsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thought-reformulate-btn[data-message-id]');
+    if (!btn) return;
+    e.stopPropagation();
+    const messageId = btn.getAttribute('data-message-id');
+    const textEl = thoughtsList.querySelector(`.thought-text[data-message-id="${messageId}"]`);
+    const originalText = textEl ? textEl.textContent : '';
+    reformulatePicker.open(originalText, async (reformulated) => {
+      try {
+        await setMessageContent(messageId, reformulated);
+        await openDashboard();
+      } catch (err) {
+        console.warn("Erreur mise à jour de la note reformulée:", err);
+      }
+    });
   });
 
   let currentCategory = localStorage.getItem('johnai.current-category') || '';

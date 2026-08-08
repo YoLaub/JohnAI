@@ -63,6 +63,17 @@ export async function createCategory(name) {
   return res.json();
 }
 
+export async function reformulateText(text) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/reformulate`, {
+    method: "POST",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  await assertOk(res, "Reformulation");
+  return res.json();
+}
+
 export async function setMessageCategory(messageId, category) {
   const { httpUrl, apiKey } = getServerConfig();
   const res = await fetch(`${httpUrl}/api/memory/${messageId}/category`, {
@@ -71,5 +82,16 @@ export async function setMessageCategory(messageId, category) {
     body: JSON.stringify({ category })
   });
   await assertOk(res, "Reclassement de la note");
+  return res.json();
+}
+
+export async function setMessageContent(messageId, content) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}/content`, {
+    method: "PATCH",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+  await assertOk(res, "Mise à jour de la note");
   return res.json();
 }
