@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
     onPermissionDenied: () => {
-      alert("Permission microphone requise par macOS. Veuillez l'accorder dans Réglages Système > Confidentialité & Sécurité > Microphone.");
+      alert("Permission microphone requise. Accordez-la dans les réglages de votre appareil (Confidentialité/Autorisations > Microphone) pour JohnAi.");
     }
   });
 

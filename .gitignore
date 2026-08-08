@@ -10,7 +10,10 @@ yarn-error.log*
 
 # Rust / Tauri
 client/src-tauri/target/
-client/src-tauri/gen/
+# gen/android's own nested .gitignore excludes build/, .gradle/, etc. — the
+# generated Android/Kotlin *source* (AndroidManifest.xml and friends) is
+# tracked like Info.plist is for macOS, since it needs manual native edits
+# (e.g. RECORD_AUDIO permission) that `tauri android init` won't reapply.
 
 # Python
 __pycache__/
