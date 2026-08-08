@@ -5,6 +5,38 @@
  *  on the desktop. */
 import { isTauriRuntime } from './local-stt.js';
 
+const SAFETY_MARGIN_PX = 6;
+
+/** Sum of visible children's own size (bypasses containerEl's own
+ *  width:fit-content resolution, which can under-measure: a stretched flex
+ *  child's content can need more room than the fit-content width the
+ *  browser settled on for the *container*, and containerEl.scrollWidth
+ *  reflects that already-too-narrow box, not what the child actually needs). */
+function measureVisibleContent(containerEl) {
+  let maxWidth = 0;
+  let totalHeight = 0;
+  let visibleCount = 0;
+
+  for (const child of containerEl.children) {
+    if (child.offsetParent === null) continue; // display:none (hidden panels)
+    maxWidth = Math.max(maxWidth, child.scrollWidth, child.getBoundingClientRect().width);
+    totalHeight += child.getBoundingClientRect().height;
+    visibleCount++;
+  }
+
+  const gapPx = parseFloat(getComputedStyle(containerEl).rowGap) || 0;
+  totalHeight += gapPx * Math.max(0, visibleCount - 1);
+
+  return {
+    width: Math.ceil(maxWidth) + SAFETY_MARGIN_PX,
+    height: Math.ceil(totalHeight) + SAFETY_MARGIN_PX,
+  };
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
 export function startWindowAutoFit(containerEl) {
   if (!isTauriRuntime() || !window.__TAURI__.window) return;
 
@@ -15,10 +47,14 @@ export function startWindowAutoFit(containerEl) {
   let lastHeight = 0;
   let pending = null;
 
-  function applySize() {
+  async function applySize() {
     pending = null;
-    const width = Math.ceil(containerEl.scrollWidth);
-    const height = Math.ceil(containerEl.scrollHeight);
+    // Let layout fully settle (DOM mutations from an await'd fetch, class
+    // toggles, etc.) before reading sizes — reading mid-layout is how you
+    // get a stale, too-small measurement and a window that clips content.
+    await nextFrame();
+
+    const { width, height } = measureVisibleContent(containerEl);
     if (width === lastWidth && height === lastHeight) return;
     lastWidth = width;
     lastHeight = height;
@@ -28,11 +64,14 @@ export function startWindowAutoFit(containerEl) {
   }
 
   const observer = new ResizeObserver(() => {
-    // Debounce: CSS transitions fire many resize events in a row.
+    // Debounce: CSS transitions / rapid DOM changes fire many resize events in a row.
     if (pending) clearTimeout(pending);
-    pending = setTimeout(applySize, 60);
+    pending = setTimeout(applySize, 80);
   });
   observer.observe(containerEl);
+  for (const child of containerEl.children) {
+    observer.observe(child);
+  }
 
   applySize();
 }
