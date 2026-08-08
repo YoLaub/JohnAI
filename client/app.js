@@ -11,7 +11,6 @@ import { renderThoughtsHistory, renderAssistantResponse } from './src/ui.js';
 import { escapeHtml } from './src/utils.js';
 import { createSettingsPanel } from './src/settings-panel.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
-import { startWindowAutoFit } from './src/window-fit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -123,11 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   relocateMicForLayout();
   window.addEventListener('resize', relocateMicForLayout);
-
-  // Desktop only: Android is fullscreen, resizing the window there is meaningless.
-  if (!isMobileLayout()) {
-    startWindowAutoFit(widgetContainer);
-  }
 
   // App State
   let attachedFiles = [];
