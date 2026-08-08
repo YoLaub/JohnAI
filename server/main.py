@@ -7,30 +7,34 @@ from dotenv import load_dotenv
 # read their config from os.getenv() at import time.
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
+from fastapi import Body, Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 try:
     from server.database import (
-        init_db, save_message, get_recent_history,
+        init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
+        list_categories, create_category, set_message_category, set_category_for_last_message,
     )
     from server.security import require_api_key, check_websocket_api_key, sanitize_filename
     from server.model_router import is_code_request, choose_model
     from server.providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
     from server.connection_manager import ConnectionManager
     from server.memory_facts import extract_remember_fact, extract_forget_query
+    from server.categorization import extract_categorize_command
 except ModuleNotFoundError:
     from database import (
-        init_db, save_message, get_recent_history,
+        init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
+        list_categories, create_category, set_message_category, set_category_for_last_message,
     )
     from security import require_api_key, check_websocket_api_key, sanitize_filename
     from model_router import is_code_request, choose_model
     from providers import get_available_ollama_models, stream_from_gemini, stream_from_ollama
     from connection_manager import ConnectionManager
     from memory_facts import extract_remember_fact, extract_forget_query
+    from categorization import extract_categorize_command
 
 app = FastAPI(
     title="JohnAi VPS Central Server",
@@ -80,7 +84,33 @@ async def health_check():
 
 @app.get("/api/memory/history", dependencies=[Depends(require_api_key)])
 async def get_memory_history():
-    return {"history": get_recent_history(limit=50)}
+    return {"history": get_message_history(limit=50)}
+
+
+@app.get("/api/categories", dependencies=[Depends(require_api_key)])
+async def get_categories():
+    return {"categories": list_categories()}
+
+
+@app.post("/api/categories", dependencies=[Depends(require_api_key)])
+async def post_category(payload: dict = Body(...)):
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return {"status": "error", "detail": "name manquant"}
+    create_category(name)
+    return {"status": "ok", "name": name}
+
+
+@app.patch("/api/memory/{message_id}/category", dependencies=[Depends(require_api_key)])
+async def patch_message_category(message_id: int, payload: dict = Body(...)):
+    category = (payload.get("category") or "").strip()
+    if not category:
+        return {"status": "error", "detail": "category manquant"}
+    create_category(category)
+    updated = set_message_category(message_id, category)
+    if not updated:
+        return {"status": "error", "detail": "message introuvable"}
+    return {"status": "ok", "id": message_id, "category": category}
 
 
 # Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
@@ -153,6 +183,7 @@ async def websocket_endpoint(websocket: WebSocket):
             files = payload.get("files", [])
             device_type = payload.get("device_type", "desktop")  # desktop / android / windows / mac
             use_cloud = payload.get("use_cloud", False)  # explicit trigger for cloud
+            category = (payload.get("category") or "").strip() or None
 
             if not user_content and not files:
                 continue
@@ -161,11 +192,28 @@ async def websocket_endpoint(websocket: WebSocket):
             if files:
                 prompt_text += f"\n[Documents joints: {', '.join(files)}]"
 
-            # Save user message to central SQLite memory
-            save_message(device_type=device_type, role="user", content=prompt_text)
+            if category:
+                create_category(category)
 
-            # Explicit fact commands take priority over Mode Note/Chat: "retiens que ..."
-            # memorizes a durable fact, "oublie que ..." removes matching ones.
+            # "mets ça dans ..." must be checked *before* saving this utterance —
+            # it targets the previous message, not itself. It isn't stored as a
+            # conversation row: it's a command, not content.
+            categorize_target = extract_categorize_command(user_content)
+            if categorize_target:
+                create_category(categorize_target)
+                moved = set_category_for_last_message(categorize_target)
+                if moved:
+                    confirmation = f"✓ **Classé dans « {categorize_target} »**"
+                else:
+                    confirmation = "⚠️ Rien à classer pour l'instant."
+                await manager.send_json({"type": "done", "full_text": confirmation}, websocket)
+                continue
+
+            # Save user message to central SQLite memory
+            save_message(device_type=device_type, role="user", content=prompt_text, category=category)
+
+            # Explicit fact commands take priority over Mode Note/Chat: "retiens
+            # que ..." memorizes a durable fact, "oublie que ..." removes matching ones.
             remember_fact = extract_remember_fact(user_content)
             if remember_fact:
                 add_memory_fact(remember_fact)

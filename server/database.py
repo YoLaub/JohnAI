@@ -33,22 +33,44 @@ def init_db():
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
+
+    # Categories used to organize conversation_history entries (thoughts/notes).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM categories")
+    if cursor.fetchone()[0] == 0:
+        default_categories = ["Famille", "R&D", "Évolution personnelle", "Philo", "Projet"]
+        cursor.executemany(
+            "INSERT INTO categories (name) VALUES (?)",
+            [(name,) for name in default_categories]
+        )
+
+    # Migration: conversation_history predates the category column.
+    cursor.execute("PRAGMA table_info(conversation_history)")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+    if "category" not in existing_columns:
+        cursor.execute("ALTER TABLE conversation_history ADD COLUMN category TEXT")
+
     conn.commit()
     conn.close()
     print(f"Base de données mémoire centralisée initialisée sur: {DB_PATH}")
 
-def save_message(device_type: str, role: str, content: str, model_used: str = None):
+def save_message(device_type: str, role: str, content: str, model_used: str = None, category: str = None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO conversation_history (device_type, role, content, model_used) VALUES (?, ?, ?, ?)",
-        (device_type, role, content, model_used)
+        "INSERT INTO conversation_history (device_type, role, content, model_used, category) VALUES (?, ?, ?, ?, ?)",
+        (device_type, role, content, model_used, category)
     )
     conn.commit()
     conn.close()
 
 def get_recent_history(limit: int = 20):
+    """Role + content only — this feeds the LLM's context window, keep it minimal."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -57,12 +79,76 @@ def get_recent_history(limit: int = 20):
     )
     rows = cursor.fetchall()
     conn.close()
-    
+
     # Reverse to keep chronological order
     history = []
     for role, content in reversed(rows):
         history.append({"role": role, "content": content})
     return history
+
+def get_message_history(limit: int = 50):
+    """Full rows (id, category included) for the dashboard/journal UI."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, role, content, category FROM conversation_history ORDER BY id DESC LIMIT ?",
+        (limit,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    history = []
+    for id_, role, content, category in reversed(rows):
+        history.append({"id": id_, "role": role, "content": content, "category": category})
+    return history
+
+def list_categories():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM categories ORDER BY name COLLATE NOCASE ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
+
+def create_category(name: str) -> str:
+    name = name.strip()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (name,))
+    conn.commit()
+    conn.close()
+    return name
+
+def set_message_category(message_id: int, category: str) -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE conversation_history SET category = ? WHERE id = ?",
+        (category, message_id)
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+def set_category_for_last_message(category: str, role: str = "user") -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM conversation_history WHERE role = ? ORDER BY id DESC LIMIT 1",
+        (role,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return False
+    cursor.execute(
+        "UPDATE conversation_history SET category = ? WHERE id = ?",
+        (category, row[0])
+    )
+    conn.commit()
+    conn.close()
+    return True
 
 def add_memory_fact(value: str) -> str:
     """Store a new free-form memorized fact (not an update — always a new row)."""
