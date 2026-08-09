@@ -16,7 +16,9 @@ try:
         init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
         list_categories, create_category, set_message_category, set_category_for_last_message,
-        set_message_content,
+        set_message_content, delete_message,
+        create_note_link, get_links_for_message, delete_note_link, get_linked_notes_context,
+        get_related_notes,
     )
     from server.security import require_api_key, check_websocket_api_key, sanitize_filename
     from server.model_router import is_code_request, choose_model
@@ -29,7 +31,9 @@ except ModuleNotFoundError:
         init_db, save_message, get_recent_history, get_message_history,
         add_memory_fact, get_all_memory_facts, delete_memory_facts_matching,
         list_categories, create_category, set_message_category, set_category_for_last_message,
-        set_message_content,
+        set_message_content, delete_message,
+        create_note_link, get_links_for_message, delete_note_link, get_linked_notes_context,
+        get_related_notes,
     )
     from security import require_api_key, check_websocket_api_key, sanitize_filename
     from model_router import is_code_request, choose_model
@@ -125,6 +129,45 @@ async def patch_message_content(message_id: int, payload: dict = Body(...)):
     if not updated:
         return {"status": "error", "detail": "message introuvable"}
     return {"status": "ok", "id": message_id, "content": content}
+
+
+@app.delete("/api/memory/{message_id}", dependencies=[Depends(require_api_key)])
+async def delete_message_route(message_id: int):
+    deleted = delete_message(message_id)
+    if not deleted:
+        return {"status": "error", "detail": "message introuvable"}
+    return {"status": "ok", "id": message_id}
+
+
+@app.get("/api/memory/{message_id}/links", dependencies=[Depends(require_api_key)])
+async def get_message_links(message_id: int):
+    return {"links": get_links_for_message(message_id)}
+
+
+@app.post("/api/memory/{message_id}/links", dependencies=[Depends(require_api_key)])
+async def post_message_link(message_id: int, payload: dict = Body(...)):
+    to_id = payload.get("to_id")
+    if not isinstance(to_id, int):
+        return {"status": "error", "detail": "to_id manquant"}
+    if to_id == message_id:
+        return {"status": "error", "detail": "une note ne peut pas se lier à elle-même"}
+    link_id = create_note_link(message_id, to_id)
+    if link_id is None:
+        return {"status": "error", "detail": "note cible introuvable"}
+    return {"status": "ok", "link_id": link_id}
+
+
+@app.delete("/api/memory/links/{link_id}", dependencies=[Depends(require_api_key)])
+async def delete_message_link(link_id: int):
+    deleted = delete_note_link(link_id)
+    if not deleted:
+        return {"status": "error", "detail": "lien introuvable"}
+    return {"status": "ok", "id": link_id}
+
+
+@app.get("/api/memory/{message_id}/related", dependencies=[Depends(require_api_key)])
+async def get_message_related(message_id: int):
+    return {"related": get_related_notes(message_id, max_hops=2)}
 
 
 # Initialize local Whisper Speech-to-Text engine (OpenWhispr / OpenAI Whisper)
@@ -375,9 +418,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 facts_list = "\n".join(f"- {f['fact_value']}" for f in memorized_facts)
                 system_prompt += f"\n\nFaits mémorisés sur l'utilisateur à prendre en compte :\n{facts_list}"
 
+            # Graph layer: notes explicitly linked (note_links) to anything in
+            # the recent window, even ones that have scrolled out of it —
+            # "what's connected to what, and since when".
+            recent_ids = [m["id"] for m in recent_context]
+            linked_notes = get_linked_notes_context(recent_ids)
+            if linked_notes:
+                linked_list = "\n".join(
+                    f"- (reliée depuis le {n['created_at']}) {n['content']}" for n in linked_notes
+                )
+                system_prompt += f"\n\nNotes liées à la conversation en cours à prendre en compte :\n{linked_list}"
+
             messages_payload = [
                 {"role": "system", "content": system_prompt}
-            ] + recent_context
+            ] + [{"role": m["role"], "content": m["content"]} for m in recent_context]
 
             requires_code = is_code_request(user_content, files)
 

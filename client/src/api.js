@@ -95,3 +95,52 @@ export async function setMessageContent(messageId, content) {
   await assertOk(res, "Mise à jour de la note");
   return res.json();
 }
+
+export async function deleteMessage(messageId) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}`, {
+    method: "DELETE",
+    headers: { "X-API-Key": apiKey }
+  });
+  await assertOk(res, "Suppression de la note");
+  return res.json();
+}
+
+export async function fetchNoteLinks(messageId) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}/links`, {
+    headers: { "X-API-Key": apiKey }
+  });
+  await assertOk(res, "Récupération des liens");
+  return res.json();
+}
+
+export async function createNoteLink(messageId, toId) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}/links`, {
+    method: "POST",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ to_id: toId })
+  });
+  await assertOk(res, "Création du lien");
+  return res.json();
+}
+
+export async function deleteNoteLink(linkId) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/links/${linkId}`, {
+    method: "DELETE",
+    headers: { "X-API-Key": apiKey }
+  });
+  await assertOk(res, "Suppression du lien");
+  return res.json();
+}
+
+export async function fetchRelatedNotes(messageId) {
+  const { httpUrl, apiKey } = getServerConfig();
+  const res = await fetch(`${httpUrl}/api/memory/${messageId}/related`, {
+    headers: { "X-API-Key": apiKey }
+  });
+  await assertOk(res, "Récupération des notes connectées");
+  return res.json();
+}

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>JohnAi - Floating Desktop Widget</title>
 
   <!-- Google Fonts: Outfit & Inter -->
@@ -188,6 +188,25 @@
             </svg>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Collapsible Link Picker (existing links + searchable candidates) -->
+    <div class="edit-panel hidden" id="linkPanel">
+      <div class="settings-field">
+        <label>Notes liées</label>
+        <div class="link-list" id="linkExistingList"></div>
+      </div>
+      <div class="settings-field">
+        <label for="linkSearchInput">Relier à...</label>
+        <input type="text" id="linkSearchInput" placeholder="Rechercher une note">
+        <div class="link-list" id="linkCandidateList"></div>
+      </div>
+      <div class="settings-field">
+        <button class="link-related-toggle" id="btnLinkRelated" title="Voir les notes connectées jusqu'à 2 sauts">
+          Vue étendue (2 sauts) ▾
+        </button>
+        <div class="link-list hidden" id="linkRelatedList"></div>
       </div>
     </div>
 

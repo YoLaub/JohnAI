@@ -58,4 +58,14 @@ describe('renderThoughtsHistory', () => {
     expect(buttons).toHaveLength(1);
     expect(buttons[0].dataset.messageId).toBe('7');
   });
+
+  it('shows a link button on user notes only, wired to the message id', () => {
+    renderThoughtsHistory(container, [
+      { id: 7, role: 'user', content: 'idée à relier' },
+      { id: 8, role: 'assistant', content: 'réponse' },
+    ]);
+    const buttons = container.querySelectorAll('.thought-link-btn');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].dataset.messageId).toBe('7');
+  });
 });

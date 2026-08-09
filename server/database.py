@@ -55,6 +55,17 @@ def init_db():
     if "category" not in existing_columns:
         cursor.execute("ALTER TABLE conversation_history ADD COLUMN category TEXT")
 
+    # Undirected links between two notes ("what's connected to what, and since
+    # when") — from_id/to_id order is just insertion order, not semantics.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS note_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_id INTEGER NOT NULL,
+            to_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
     print(f"Base de données mémoire centralisée initialisée sur: {DB_PATH}")
@@ -70,11 +81,12 @@ def save_message(device_type: str, role: str, content: str, model_used: str = No
     conn.close()
 
 def get_recent_history(limit: int = 20):
-    """Role + content only — this feeds the LLM's context window, keep it minimal."""
+    """id + role + content — id is dropped before this feeds the LLM (see
+    main.py) and is only used server-side to pull in linked notes (note_links)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT role, content FROM conversation_history ORDER BY id DESC LIMIT ?",
+        "SELECT id, role, content FROM conversation_history ORDER BY id DESC LIMIT ?",
         (limit,)
     )
     rows = cursor.fetchall()
@@ -82,9 +94,44 @@ def get_recent_history(limit: int = 20):
 
     # Reverse to keep chronological order
     history = []
-    for role, content in reversed(rows):
-        history.append({"role": role, "content": content})
+    for id_, role, content in reversed(rows):
+        history.append({"id": id_, "role": role, "content": content})
     return history
+
+def get_linked_notes_context(message_ids):
+    """Notes linked (note_links) to any of the given message ids, deduped by
+    target note. Not filtered to "outside the window" — the point is the
+    explicit *connection* (and since when), which plain recent-history text
+    doesn't convey even if the linked note's raw content is already visible.
+    created_at is the link's own timestamp (since when they're connected),
+    not the note's own timestamp."""
+    if not message_ids:
+        return []
+
+    ids = list(message_ids)
+    placeholders = ",".join("?" for _ in ids)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(f"""
+        SELECT nl.id,
+               CASE WHEN nl.from_id IN ({placeholders}) THEN nl.to_id ELSE nl.from_id END AS other_id,
+               nl.created_at, ch.content
+        FROM note_links nl
+        JOIN conversation_history ch
+          ON ch.id = CASE WHEN nl.from_id IN ({placeholders}) THEN nl.to_id ELSE nl.from_id END
+        WHERE nl.from_id IN ({placeholders}) OR nl.to_id IN ({placeholders})
+    """, ids * 4)
+    rows = cursor.fetchall()
+    conn.close()
+
+    seen = set()
+    context = []
+    for _link_id, other_id, created_at, content in rows:
+        if other_id in seen:
+            continue
+        seen.add(other_id)
+        context.append({"message_id": other_id, "content": content, "created_at": created_at})
+    return context
 
 def get_message_history(limit: int = 50):
     """Full rows (id, category included) for the dashboard/journal UI."""
@@ -142,6 +189,110 @@ def set_message_content(message_id: int, content: str) -> bool:
     conn.commit()
     conn.close()
     return updated
+
+def delete_message(message_id: int) -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM note_links WHERE from_id = ? OR to_id = ?",
+        (message_id, message_id)
+    )
+    cursor.execute("DELETE FROM conversation_history WHERE id = ?", (message_id,))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+def create_note_link(from_id: int, to_id: int) -> int | None:
+    """Undirected: idempotent regardless of which side is passed as from/to."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM note_links WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)",
+        (from_id, to_id, to_id, from_id)
+    )
+    existing = cursor.fetchone()
+    if existing:
+        conn.close()
+        return existing[0]
+
+    cursor.execute("SELECT 1 FROM conversation_history WHERE id = ?", (to_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return None
+
+    cursor.execute("INSERT INTO note_links (from_id, to_id) VALUES (?, ?)", (from_id, to_id))
+    link_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return link_id
+
+def get_links_for_message(message_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT nl.id, nl.created_at,
+               CASE WHEN nl.from_id = ? THEN nl.to_id ELSE nl.from_id END AS other_id,
+               ch.role, ch.content, ch.category
+        FROM note_links nl
+        JOIN conversation_history ch
+          ON ch.id = CASE WHEN nl.from_id = ? THEN nl.to_id ELSE nl.from_id END
+        WHERE nl.from_id = ? OR nl.to_id = ?
+        ORDER BY nl.created_at DESC
+    """, (message_id, message_id, message_id, message_id))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "link_id": link_id,
+            "created_at": created_at,
+            "message_id": other_id,
+            "role": role,
+            "content": content,
+            "category": category,
+        }
+        for link_id, created_at, other_id, role, content, category in rows
+    ]
+
+def delete_note_link(link_id: int) -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM note_links WHERE id = ?", (link_id,))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+def get_related_notes(message_id: int, max_hops: int = 2):
+    """BFS over note_links via a recursive CTE, capped at max_hops — the
+    multi-hop view: "everything connected to this note, and how far away".
+    Takes the shortest path when a note is reachable more than one way."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        WITH RECURSIVE reachable(id, hops) AS (
+            SELECT ?, 0
+            UNION
+            SELECT CASE WHEN nl.from_id = r.id THEN nl.to_id ELSE nl.from_id END, r.hops + 1
+            FROM note_links nl
+            JOIN reachable r ON nl.from_id = r.id OR nl.to_id = r.id
+            WHERE r.hops < ?
+        )
+        SELECT r.id, MIN(r.hops) AS hops, ch.content, ch.category
+        FROM reachable r
+        JOIN conversation_history ch ON ch.id = r.id
+        WHERE r.id != ?
+        GROUP BY r.id
+        ORDER BY hops ASC, r.id ASC
+    """, (message_id, max_hops, message_id))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {"message_id": id_, "hops": hops, "content": content, "category": category}
+        for id_, hops, content, category in rows
+    ]
 
 def set_category_for_last_message(category: str, role: str = "user") -> bool:
     conn = sqlite3.connect(DB_PATH)

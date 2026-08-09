@@ -3,7 +3,7 @@
    Wiring only: DOM refs, event listeners and app state live here; behavior
    is implemented in client/src/*.js.
    ========================================================================== */
-import { fetchMemoryHistory, transcribeAudio, uploadFile, setMessageCategory, setMessageContent } from './src/api.js';
+import { fetchMemoryHistory, transcribeAudio, uploadFile, setMessageCategory, setMessageContent, deleteMessage } from './src/api.js';
 import { createChatSocket } from './src/chat-socket.js';
 import { createWaveformRenderer } from './src/waveform.js';
 import { createAudioController } from './src/audio-recorder.js';
@@ -12,6 +12,7 @@ import { escapeHtml } from './src/utils.js';
 import { createSettingsPanel } from './src/settings-panel.js';
 import { createCategoryPicker } from './src/category-picker.js';
 import { createReformulatePicker } from './src/reformulate-picker.js';
+import { createLinkPicker } from './src/link-picker.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 import { startWindowAutoFit } from './src/window-fit.js';
 import { generateLocally } from './src/local-ollama.js';
@@ -59,6 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const reformulateResult = document.getElementById('reformulateResult');
   const btnReformulateKeep = document.getElementById('btnReformulateKeep');
   const btnReformulateCancel = document.getElementById('btnReformulateCancel');
+  const linkPanel = document.getElementById('linkPanel');
+  const linkExistingList = document.getElementById('linkExistingList');
+  const linkCandidateList = document.getElementById('linkCandidateList');
+  const linkSearchInput = document.getElementById('linkSearchInput');
+  const btnLinkRelated = document.getElementById('btnLinkRelated');
+  const linkRelatedList = document.getElementById('linkRelatedList');
 
   createSettingsPanel({
     panel: settingsPanel,
@@ -87,6 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCancel: btnReformulateCancel,
   });
 
+  // Link two notes together ("what's connected to what, and since when").
+  // Undirected — the panel lists existing links plus a searchable list of
+  // other notes to add.
+  const linkPicker = createLinkPicker({
+    panel: linkPanel,
+    existingListEl: linkExistingList,
+    candidateListEl: linkCandidateList,
+    searchInput: linkSearchInput,
+    btnRelated: btnLinkRelated,
+    relatedListEl: linkRelatedList,
+  });
+
   btnReformulateDraft.addEventListener('click', () => {
     reformulatePicker.open(promptInput.value, (reformulated) => {
       promptInput.value = reformulated;
@@ -109,6 +128,35 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Erreur mise à jour de la note reformulée:", err);
       }
     });
+  });
+
+  // Post-hoc linking: tap a note's link button in the journal to connect it
+  // to another one (undirected, "what's connected to what, and since when").
+  thoughtsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thought-link-btn[data-message-id]');
+    if (!btn) return;
+    e.stopPropagation();
+    const messageId = parseInt(btn.getAttribute('data-message-id'), 10);
+    linkPicker.toggle(messageId, currentHistory, () => {
+      fetchMemoryHistory().then(data => { currentHistory = data.history || []; }).catch(() => {});
+    });
+  });
+
+  // Post-hoc deletion: tap a note's delete button in the journal.
+  thoughtsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thought-delete-btn[data-message-id]');
+    if (!btn) return;
+    e.stopPropagation();
+    const messageId = btn.getAttribute('data-message-id');
+    if (!window.confirm('Supprimer définitivement cette note ?')) return;
+    (async () => {
+      try {
+        await deleteMessage(messageId);
+        await openDashboard();
+      } catch (err) {
+        console.warn("Erreur suppression de la note:", err);
+      }
+    })();
   });
 
   let currentCategory = localStorage.getItem('johnai.current-category') || '';
@@ -143,13 +191,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // View Mode Toggle (Compact Pill vs Full Dashboard)
   let isDashboardOpen = false;
 
+  let currentHistory = [];
+
   async function openDashboard() {
     isDashboardOpen = true;
     btnToggleView.classList.add('active');
     mobileDashboard.classList.remove('hidden');
     try {
       const data = await fetchMemoryHistory();
-      renderThoughtsHistory(thoughtsList, data.history || []);
+      currentHistory = data.history || [];
+      renderThoughtsHistory(thoughtsList, currentHistory);
     } catch (e) {
       console.warn("Erreur de récupération mémoire:", e);
       thoughtsList.innerHTML = `<div class="thought-card"><div class="thought-text" style="color:#ef4444;">⚠️ ${escapeHtml(e.message)}</div></div>`;
