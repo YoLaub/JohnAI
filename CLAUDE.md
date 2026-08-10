@@ -104,6 +104,28 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   à la coroutine de connexion). La reformulation (`reformulate-picker.js`) suit le
   même principe local-d'abord mais en HTTP simple, sans toucher au serveur : repli
   sur `POST /api/reformulate` (Gemini) si Ollama local indisponible.
+- **Serveur MCP** (`server/mcp_server.py`, `server/mcp_security.py`) : exposé sur le VPS
+  à `/mcp` (streamable-http, monté dans `server/main.py`), pas de process local séparé —
+  cohérent avec le reste de l'archi (VPS = seul détenteur de la donnée). Deux tools en
+  lecture seule : `list_note_categories`, `get_notes_by_category(category)` (comparaison
+  insensible à la casse, comme `categories.name`). Usage solo, pas de multi-tenant, pas
+  d'OAuth : auth par bearer statique `MCP_API_KEY` (`server/.env`, **distinct** de
+  `API_KEY` — surface d'exposition différente, un leak sur l'une ne compromet pas
+  l'autre, cf. incident du 2026-08-07 sur `API_KEY`). Anti-abus : rate-limit token
+  bucket par identité (`MCP_RATE_LIMIT_CAPACITY`/`MCP_RATE_LIMIT_REFILL_PER_SEC`,
+  défaut 30 rafale / ~1 toutes les 2s soutenu) + logging de chaque appel (succès et
+  rejets) — tout dans `McpGateMiddleware`, une seule couche pour auth+rate-limit+log
+  pour garantir qu'un rejet de rate-limit apparaît dans les mêmes logs qu'un appel de
+  tool normal. Le SDK MCP (`mcp>=2.0.0`) construit un `Starlette` autonome
+  (`MCPServer.streamable_http_app`) dont le lifespan (`StreamableHTTPSessionManager`)
+  doit être entré explicitement depuis celui de `server/main.py`
+  (`mcp_asgi_app.router.lifespan_context`) — un mount Starlette classique ne propage
+  pas le lifespan d'une sous-app automatiquement, sinon le serveur MCP ne démarre jamais
+  vraiment (piège documenté dans le skill `create-mcp`). Conséquence pour les tests :
+  le fixture `client` de `server/tests/conftest.py` est **session-scoped**, pas
+  function-scoped — `StreamableHTTPSessionManager.run()` ne peut être entré qu'une
+  fois par instance de process, un `TestClient` recréé à chaque test lèverait sinon
+  `RuntimeError` au second test.
 - **Hébergement** : VPS via Docker Compose + Coolify (`server/docker-compose.yml`).
   **Le VPS n'a jamais d'Ollama local** — volontaire, pas une panne : c'est la machine
   de l'utilisateur (via Ollama) ou un provider cloud (Gemini) qui fait tourner l'IA,

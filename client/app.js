@@ -142,13 +142,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Post-hoc deletion: tap a note's delete button in the journal.
+  // Post-hoc deletion: tap a note's delete button in the journal. No native
+  // confirm() — this window is borderless/custom-chrome, and system dialogs
+  // have a history of rendering wrong or being unreachable in it (see
+  // e1d5c5a, 5480138). Instead: first tap arms the button (visibly, with a
+  // timeout), second tap within 3s confirms.
   thoughtsList.addEventListener('click', (e) => {
     const btn = e.target.closest('.thought-delete-btn[data-message-id]');
     if (!btn) return;
     e.stopPropagation();
     const messageId = btn.getAttribute('data-message-id');
-    if (!window.confirm('Supprimer définitivement cette note ?')) return;
+
+    if (btn.dataset.armed !== 'true') {
+      btn.dataset.armed = 'true';
+      btn.classList.add('armed');
+      btn.title = 'Cliquer à nouveau pour confirmer la suppression';
+      clearTimeout(btn._disarmTimer);
+      btn._disarmTimer = setTimeout(() => {
+        btn.dataset.armed = 'false';
+        btn.classList.remove('armed');
+        btn.title = 'Supprimer cette pensée';
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(btn._disarmTimer);
     (async () => {
       try {
         await deleteMessage(messageId);

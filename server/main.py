@@ -1,5 +1,6 @@
 import os
 import json
+import contextlib
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -26,6 +27,7 @@ try:
     from server.connection_manager import ConnectionManager
     from server.memory_facts import extract_remember_fact, extract_forget_query
     from server.categorization import extract_categorize_command
+    from server.mcp_server import build_mcp_asgi_app
 except ModuleNotFoundError:
     from database import (
         init_db, save_message, get_recent_history, get_message_history,
@@ -41,11 +43,25 @@ except ModuleNotFoundError:
     from connection_manager import ConnectionManager
     from memory_facts import extract_remember_fact, extract_forget_query
     from categorization import extract_categorize_command
+    from mcp_server import build_mcp_asgi_app
+
+# Built before the FastAPI app: its own lifespan (session manager) needs to be
+# entered from ours below, and add_middleware/mount need the same instance.
+mcp_asgi_app = build_mcp_asgi_app()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    async with mcp_asgi_app.router.lifespan_context(mcp_asgi_app):
+        yield
+
 
 app = FastAPI(
     title="JohnAi VPS Central Server",
     description="Hybrid Central Backend: Local Ollama (Gemma 3/Qwen) + Google Gemini Cloud + Centralized SQLite Memory",
-    version="1.1.0"
+    version="1.1.0",
+    lifespan=lifespan,
 )
 
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -67,10 +83,7 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
-
+app.mount("/mcp", mcp_asgi_app)
 
 manager = ConnectionManager()
 

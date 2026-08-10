@@ -5,6 +5,7 @@ pydantic>=2.6.0
 python-multipart>=0.0.9
 faster-whisper>=1.0.0
 python-dotenv>=1.0.0
+mcp>=2.0.0
 
 # Dev / tests
 pytest>=8.0.0

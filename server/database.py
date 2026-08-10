@@ -149,6 +149,21 @@ def get_message_history(limit: int = 50):
         history.append({"id": id_, "role": role, "content": content, "category": category})
     return history
 
+def get_messages_by_category(category: str, limit: int = 100):
+    """User notes in a given category — case-insensitive, matching how
+    categories.name itself is compared (COLLATE NOCASE) everywhere else."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT id, content, timestamp FROM conversation_history
+           WHERE role = 'user' AND category = ? COLLATE NOCASE
+           ORDER BY id DESC LIMIT ?""",
+        (category, limit)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": id_, "content": content, "created_at": created_at} for id_, content, created_at in rows]
+
 def list_categories():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

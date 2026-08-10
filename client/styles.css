@@ -797,6 +797,18 @@ textarea#promptInput:focus {
   background: rgba(239, 68, 68, 0.28);
 }
 
+.thought-delete-btn.armed {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+  animation: thought-delete-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes thought-delete-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
 .thought-delete-btn svg {
   width: 12px;
   height: 12px;
