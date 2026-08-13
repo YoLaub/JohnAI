@@ -63,8 +63,16 @@ export function createAudioController({ waveform, onFinalTranscript, onInterimTr
     try {
       audioChunks = [];
 
-      // Request mic permission explicitly from macOS / System
-      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request mic with WebRTC Audio Processing (noise suppression, echo cancellation, AGC)
+      audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          noiseSuppression: true,
+          echoCancellation: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 16000
+        }
+      });
 
       // Connect real mic to Web Audio API for waveform canvas animation
       audioContext = new (window.AudioContext || window.webkitAudioContext)();

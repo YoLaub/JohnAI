@@ -4,11 +4,10 @@ import os
 TEST_API_KEY = os.environ["API_KEY"]
 
 
-def test_transcribe_falls_back_gracefully_on_tiny_audio(client, auth_headers):
-    """Regression: the fallback text in /api/transcribe used `datetime.now()`
-    without importing `datetime`, raising NameError whenever Whisper produced
-    no transcription (e.g. a too-small audio blob)."""
-    tiny_audio = io.BytesIO(b"\x00" * 10)  # below the 200-byte transcription threshold
+def test_transcribe_returns_no_speech_on_tiny_or_silent_audio(client, auth_headers):
+    """Audio below minimum size threshold or containing no voice should return status 'no_speech'
+    instead of saving false dummy notes."""
+    tiny_audio = io.BytesIO(b"\x00" * 10)
 
     response = client.post(
         "/api/transcribe",
@@ -18,5 +17,6 @@ def test_transcribe_falls_back_gracefully_on_tiny_audio(client, auth_headers):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "transcribed"
-    assert body["text"]
+    assert body["status"] == "no_speech"
+    assert body["text"] == ""
+

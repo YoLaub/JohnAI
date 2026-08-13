@@ -441,7 +441,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (text) {
           await sendPrompt(text);
         } else {
-          responseContent.innerHTML = `<span style="color: #f59e0b;">⚠️ Le serveur n'a renvoyé aucun texte transcrit.</span>`;
+          const detail = (data && data.detail) || "Aucune parole détectée (bruit ambiant filtré)";
+          responseContent.innerHTML = `<span style="color: #f59e0b;">🔇 ${escapeHtml(detail)}</span>`;
+          setTimeout(() => {
+            responsePanel.classList.add('hidden');
+          }, 2500);
         }
       } catch (e) {
         console.warn("Erreur transcription serveur:", e);

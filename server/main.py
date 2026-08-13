@@ -249,9 +249,35 @@ async def upload_document(file: UploadFile = File(...)):
     return {"filename": safe_filename, "status": "uploaded", "size_bytes": os.path.getsize(file_location)}
 
 
+NOISE_HALLUCINATIONS = {
+    "sous-titres réalisés par",
+    "sous-titrage",
+    "merci d'avoir regardé",
+    "merci de votre attention",
+    "merci à tous",
+    "musique",
+    "applaudissements",
+    "...",
+    "..",
+    ".",
+    "silence",
+    "transcript",
+}
+
+
+def is_hallucination_or_noise(text: str) -> bool:
+    cleaned = text.strip().lower()
+    if not cleaned or len(cleaned) <= 1:
+        return True
+    for pattern in NOISE_HALLUCINATIONS:
+        if pattern in cleaned:
+            return True
+    return False
+
+
 @app.post("/api/transcribe", dependencies=[Depends(require_api_key)])
 async def transcribe_audio(file: UploadFile = File(...)):
-    """Transcribe recorded voice note audio blob using local Whisper engine"""
+    """Transcribe recorded voice note audio blob using local Whisper engine with VAD & noise filtering"""
     safe_filename = sanitize_filename(file.filename)
     file_location = os.path.join(UPLOAD_DIR, safe_filename)
     content = await file.read()
@@ -262,23 +288,58 @@ async def transcribe_audio(file: UploadFile = File(...)):
     print(f"🎙️ Audio reçu pour transcription: {safe_filename} ({file_size} octets)")
 
     transcribed_text = ""
+    is_valid_speech = False
+
     if whisper_model and file_size > 200:
         try:
             segments, info = whisper_model.transcribe(
-                file_location, language="fr", beam_size=5, vad_filter=True
+                file_location,
+                language="fr",
+                beam_size=5,
+                vad_filter=True,
+                vad_parameters=dict(
+                    threshold=0.5,
+                    min_speech_duration_ms=250,
+                    min_silence_duration_ms=800,
+                    speech_pad_ms=200,
+                ),
             )
-            transcribed_text = " ".join([segment.text for segment in segments]).strip()
-            print(f"✨ Transcription Whisper réussie: '{transcribed_text}'")
+
+            # Check if whisper classified the audio as noise / no-speech
+            no_speech_prob = getattr(info, "no_speech_prob", 0.0) if info else 0.0
+            if no_speech_prob > 0.65:
+                print(f"🔇 Audio classé comme non-parole/bruit (no_speech_prob={no_speech_prob:.2f})")
+                return {
+                    "text": "",
+                    "filename": safe_filename,
+                    "status": "no_speech",
+                    "detail": "Bruit ambiant détecté (aucune parole nette)",
+                }
+
+            text_parts = [segment.text for segment in segments]
+            transcribed_text = " ".join(text_parts).strip()
+
+            if transcribed_text and not is_hallucination_or_noise(transcribed_text):
+                is_valid_speech = True
+                print(f"✨ Transcription Whisper réussie: '{transcribed_text}'")
+            else:
+                print(f"🚫 Transcription filtrée (bruit/hallucination): '{transcribed_text}'")
+                transcribed_text = ""
         except Exception as err:
             print("Erreur transcription Whisper:", err)
 
-    if not transcribed_text:
-        transcribed_text = f"Note vocale enregistrée le {datetime.now().strftime('%H:%M')}"
+    if not is_valid_speech or not transcribed_text:
+        return {
+            "text": "",
+            "filename": safe_filename,
+            "status": "no_speech",
+            "detail": "Aucune parole détectée",
+        }
 
     return {
         "text": transcribed_text,
         "filename": safe_filename,
-        "status": "transcribed"
+        "status": "transcribed",
     }
 
 
