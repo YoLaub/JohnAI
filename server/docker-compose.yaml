@@ -23,6 +23,10 @@ services:
       # ?api_key= for the websocket). Server refuses every non-public route
       # without it. Set a real value in Coolify's env vars, never commit one.
       - API_KEY=${API_KEY}
+      # Required to use the MCP server (/mcp): bearer token, distinct from
+      # API_KEY (different exposure surface). Set a real value in Coolify's
+      # env vars, never commit one.
+      - MCP_API_KEY=${MCP_API_KEY}
     volumes:
       - johnai_data:/app/data
 
