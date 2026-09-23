@@ -5,7 +5,7 @@ import secrets
 from fastapi import Header, HTTPException
 
 # Shared secret protecting every non-public route: every JohnAi device (Mac,
-# Windows, Android PWA) sends it as `X-API-Key` header, or `?api_key=` for the
+# Windows, Android app) sends it as `X-API-Key` header, or `?api_key=` for the
 # websocket which can't set custom headers from a browser.
 API_KEY = os.getenv("API_KEY", "")
 if not API_KEY:

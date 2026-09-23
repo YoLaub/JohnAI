@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Prefer on-device Whisper (whisper.cpp via Tauri) when available: no network
       // round-trip, uses the Mac's own hardware. Falls back to the server otherwise
-      // (Android PWA has no Tauri runtime, or local transcription failed).
+      // (local transcription failed).
       if (isTauriRuntime()) {
         try {
           if (!(await isLocalModelReady())) {

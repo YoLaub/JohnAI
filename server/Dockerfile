@@ -1,12 +1,4 @@
-# Build context is the repo root (see server/docker-compose.yaml: context: ..)
-# so this stage can reach client/ to build the PWA static assets.
-FROM node:20-slim AS client-builder
-WORKDIR /client
-COPY client/package*.json ./
-RUN npm install
-COPY client/ .
-RUN npm run build
-
+# Build context is the repo root (see server/docker-compose.yaml: context: ..).
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -22,9 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY server/ .
-
-# Client PWA static assets, served by main.py at "/"
-COPY --from=client-builder /client/dist ./static
 
 # Create persistent data volume directory
 RUN mkdir -p /app/data

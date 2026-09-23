@@ -1,7 +1,7 @@
 /** On-device dictation for the Android app, through Android's own
  *  SpeechRecognizer (tauri-plugin-stt). No audio file, no server round-trip:
  *  the text comes straight from the phone's recognizer. Desktop keeps
- *  whisper.cpp (local-stt.js); the browser PWA keeps audio-recorder.js. */
+ *  whisper.cpp (local-stt.js). */
 import { isTauriRuntime } from './local-stt.js';
 
 export function isNativeDictationAvailable() {

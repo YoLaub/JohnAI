@@ -14,7 +14,7 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
 
 ## Contraintes
 - Usage personnel solo — pas de multi-tenant, pas de gestion d'utilisateurs.
-- Mobile (Android/PWA) doit rester léger : le mode nomade route vers Gemini Cloud
+- Mobile (APK Android) doit rester léger : le mode nomade route vers Gemini Cloud
   pour préserver la batterie, jamais vers les modèles locaux.
 - macOS/Windows nécessitent les permissions natives (ex. `NSMicrophoneUsageDescription`
   dans `client/src-tauri`) — à vérifier à chaque changement touchant l'audio natif.
@@ -57,8 +57,9 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   - `server/connection_manager.py` : `ConnectionManager`
   - `server/memory_facts.py` : détection des commandes "retiens que" / "oublie que"
   - `server/database.py` : mémoire SQLite (historique + faits durables)
-  - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback** pour la PWA
-    Android servie via navigateur, ou si la transcription locale échoue sur desktop.
+  - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback** desktop
+    uniquement, si la transcription locale échoue. Plus de PWA : le VPS ne sert
+    aucune interface web (supprimée le 2026-09-23, test de début jamais utilisé).
     **Jamais utilisé par l'APK Android** (voir « STT Android » ci-dessous).
 - **STT local (prioritaire sur Mac/Windows uniquement)** : `client/src-tauri/src/whisper_stt.rs`
   (whisper-rs/whisper.cpp, Metal+CoreML sur macOS) + `client/src/local-stt.js`
@@ -141,14 +142,14 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
 - **Hébergement** : VPS via Docker Compose + Coolify (`server/docker-compose.yml`).
   **Le VPS n'a jamais d'Ollama local** — volontaire, pas une panne : c'est la machine
   de l'utilisateur (via Ollama) ou un provider cloud (Gemini) qui fait tourner l'IA,
-  jamais le serveur central. Le VPS ne sert que le cloud (mobile/PWA, et repli
+  jamais le serveur central. Le VPS ne sert que le cloud (APK Android, et repli
   desktop si Ollama local absent) + la synchronisation mémoire.
 
 ## Méthode
 - **TDD** : tests écrits avant le code.
   - Serveur (`server/`) : **pytest**, tests dans `server/tests/` (`conftest.py` isole DB/API_KEY de test).
   - Client (`client/`) : **Vitest** + jsdom, tests colocalisés (`client/src/*.test.js`).
-    Modules DOM-lourds (`audio-recorder.js`, `waveform.js`, `chat-socket.js`) non
+    Modules DOM-lourds (`audio-recorder.js`, `waveform.js`) non
     couverts par des tests unitaires — vérifiés manuellement via le skill `run`
     (navigateur réel + WebSocket vers un vrai serveur JohnAi).
 - **Git** : commits directs sur `main`, pas de branche dev/feature (cohérent avec

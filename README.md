@@ -34,11 +34,10 @@
 
 ```
 JohnAi/
-├── client/                      # Application Client Desktop (Tauri 2.0) & Web PWA
+├── client/                      # Application Client Desktop & Android (Tauri 2.0)
 │   ├── index.html               # Structure HTML de la Floating Pill & du Dashboard
 │   ├── styles.css               # Design System Glassmorphism & Responsive Mobile
 │   ├── app.js                   # Visualiseur Canvas, STT, WebSockets, Drag & Drop
-│   ├── manifest.json            # Configuration PWA Android
 │   └── src-tauri/               # Runner Native Desktop (Rust / macOSPrivateApi)
 │
 └── server/                      # Serveur Central VPS & API (FastAPI)
@@ -91,14 +90,6 @@ npx @tauri-apps/cli dev
 > séparée et sert son contenu à `/` — d'où `context: ..` dans `server/docker-compose.yaml`
 > (le build a besoin d'accéder à `client/`, pas seulement `server/`). La base directory
 > Coolify reste `server/`, seul le `context` du build pointe vers la racine du repo.
-
----
-
-## 📱 Installation sur Smartphone Android (PWA)
-
-1. Depuis le navigateur de votre smartphone, rendez-vous sur l'URL de votre serveur VPS (`https://johnai.votre-domaine.com`).
-2. Appuyez sur le menu du navigateur et choisissez **"Ajouter à l'écran d'accueil"**.
-3. L'application **JohnAi** s'installe comme une app native avec de grands boutons tactiles d'enregistrement en 1 tap !
 
 ---
 

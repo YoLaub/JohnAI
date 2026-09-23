@@ -1,6 +1,5 @@
 /** Local (on-device) speech-to-text via the Tauri Rust backend (whisper.cpp).
- *  Only available in the native desktop app — the Android PWA has no Tauri
- *  runtime and must keep using the server's /api/transcribe instead. */
+ *  Desktop only — the Android app uses native-stt.js instead. */
 
 export function isTauriRuntime() {
   return typeof window !== 'undefined' && !!window.__TAURI__;

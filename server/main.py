@@ -10,7 +10,6 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from fastapi import Body, Depends, FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 try:
     from server.database import (
@@ -528,14 +527,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-
-
-# PWA static assets (client/dist, built into ./static by the Docker image — see
-# server/Dockerfile). Mounted last: Starlette matches routes in registration
-# order, and a "/" mount would otherwise shadow every /api/... route above it.
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-if os.path.isdir(STATIC_DIR):
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="pwa")
 
 
 if __name__ == "__main__":
