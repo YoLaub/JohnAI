@@ -566,8 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
       thoughtsList.prepend(newCard);
     }
 
-    // Send via WebSocket if connected, otherwise fallback to simulation
-    const sent = chatSocket.send({
+    // Send via WebSocket if connected. A note is never dropped: it waits for the
+    // next connection. A chat message falls back to the offline simulation.
+    const payload = {
       type: "text",
       content: text,
       mode: currentMode,
@@ -575,7 +576,12 @@ document.addEventListener('DOMContentLoaded', () => {
       files: attachedFiles.map(f => f.name),
       category: currentCategory,
       supports_local_generation: isTauriRuntime()
-    });
+    };
+    const sent = currentMode === 'note' ? chatSocket.sendOrQueue(payload) : chatSocket.send(payload);
+
+    if (!sent && currentMode === 'note') {
+      responseContent.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">📡 Hors connexion : pensée gardée, envoyée dès le retour du réseau</span>`;
+    }
 
     if (!sent) {
       const fileSummary = attachedFiles.length ? ` (Fichiers joints: ${attachedFiles.map(f => f.name).join(', ')})` : '';

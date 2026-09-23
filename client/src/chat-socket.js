@@ -1,5 +1,22 @@
 import { getServerConfig } from './config.js';
 
+// Notes typed/dictated while the socket is down (e.g. Android just resumed the
+// app from the background) wait here until the next successful connection.
+// Persisted so an app kill before reconnecting doesn't lose them either.
+const QUEUE_KEY = 'johnai.pending-notes';
+
+function readQueue() {
+  try {
+    return JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeQueue(queue) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+}
+
 /** WebSocket connection to the JohnAi server, with an automatic reconnect loop. */
 export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError, onGenerateLocally }) {
   let ws = null;
@@ -10,6 +27,7 @@ export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError, 
 
       ws.onopen = () => {
         console.log("Connecté au serveur VPS JohnAi");
+        flushQueue();
         if (onOpen) onOpen();
       };
 
@@ -47,5 +65,20 @@ export function createChatSocket({ onOpen, onStatus, onStream, onDone, onError, 
     return false;
   }
 
-  return { connect, send };
+  function flushQueue() {
+    const queue = readQueue();
+    if (queue.length === 0) return;
+    for (const payload of queue) ws.send(JSON.stringify(payload));
+    writeQueue([]);
+  }
+
+  /** Like send(), but a payload that can't go out now is kept and delivered
+   *  on the next connection instead of being dropped. Returns true if sent now. */
+  function sendOrQueue(payload) {
+    if (send(payload)) return true;
+    writeQueue([...readQueue(), payload]);
+    return false;
+  }
+
+  return { connect, send, sendOrQueue };
 }
