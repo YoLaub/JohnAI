@@ -64,7 +64,9 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
 - **STT local (prioritaire sur Mac/Windows uniquement)** : `client/src-tauri/src/whisper_stt.rs`
   (whisper-rs/whisper.cpp, Metal+CoreML sur macOS) + `client/src/local-stt.js`
   (décodage audio → PCM mono 16kHz via Web Audio API, puis commande Tauri
-  `transcribe_audio`). Modèle `ggml-small.bin` téléchargé une fois au premier usage
+  `transcribe_audio`). Modèle `ggml-large-v3-turbo-q5_0.bin` sur macOS (~550 Mo, bien
+  plus précis en français que `small`, validé le 2026-09-23), `ggml-small.bin` ailleurs
+  (Windows, pas de backend GPU configuré) — téléchargé une fois au premier usage
   dans le dossier de données de l'app (pas embarqué dans l'installeur). `app.js`
   tente le local en premier si `window.__TAURI__` existe, retombe sur le serveur
   sinon. Choisi plutôt qu'un sidecar Python (faster-whisper local) car ça compile

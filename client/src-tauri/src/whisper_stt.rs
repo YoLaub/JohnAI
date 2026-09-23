@@ -5,9 +5,15 @@ use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-const MODEL_URL: &str =
-    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
+// macOS: large-v3-turbo (q5_0 quantized, ~550 MB) — clearly better French
+// accuracy than small at a similar size, and fast enough on Metal.
+// Other desktops (Windows, no GPU backend configured) keep small for speed.
+#[cfg(target_os = "macos")]
+const MODEL_FILENAME: &str = "ggml-large-v3-turbo-q5_0.bin";
+#[cfg(not(target_os = "macos"))]
 const MODEL_FILENAME: &str = "ggml-small.bin";
+
+const MODEL_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
 
 #[derive(Default)]
 pub struct WhisperState {
@@ -38,7 +44,7 @@ pub async fn download_model(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let response = reqwest::get(MODEL_URL)
+    let response = reqwest::get(format!("{MODEL_BASE_URL}{MODEL_FILENAME}"))
         .await
         .map_err(|e| format!("Échec de la requête de téléchargement: {e}"))?;
 
