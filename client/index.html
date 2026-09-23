@@ -44,6 +44,13 @@
         <span class="brand-name" data-tauri-drag-region>JohnAi</span>
       </div>
 
+      <!-- Reduced mode toggle (desktop only): folds the pill down to the brand. -->
+      <button class="collapse-btn" id="btnCollapse" title="Réduire JohnAi" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 6 9 12 15 18"/>
+        </svg>
+      </button>
+
       <!-- Waveform Visualizer Area -->
       <div class="waveform-container" id="waveformContainer" title="État de l'assistant" data-tauri-drag-region>
         <canvas id="waveformCanvas" width="75" height="28" data-tauri-drag-region></canvas>

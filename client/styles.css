@@ -270,6 +270,47 @@ html, body {
   -webkit-text-fill-color: transparent;
 }
 
+/* Reduced Mode Toggle (desktop only — hidden in the mobile media query) */
+.collapse-btn {
+  width: 18px;
+  height: 26px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.collapse-btn svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.2s ease;
+}
+
+.collapse-btn:hover {
+  color: #ffffff;
+}
+
+/* Reduced mode: only the brand badge + the expand chevron remain. */
+.widget-wrapper.collapsed > :not(.pill-bar):not(.drag-overlay),
+.widget-wrapper.collapsed .pill-bar > :not(.brand):not(.collapse-btn) {
+  display: none;
+}
+
+.widget-wrapper.collapsed .pill-bar {
+  justify-content: flex-start;
+  padding: 0 12px 0 16px;
+}
+
+.widget-wrapper.collapsed .collapse-btn svg {
+  transform: rotate(180deg);
+}
+
 /* Waveform Visualizer Area */
 .waveform-container {
   position: relative;
@@ -977,6 +1018,10 @@ textarea#promptInput:focus {
 
   .brand {
     order: 1;
+  }
+
+  .collapse-btn {
+    display: none;
   }
 
   .waveform-container {

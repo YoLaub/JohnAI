@@ -15,6 +15,7 @@ import { createReformulatePicker } from './src/reformulate-picker.js';
 import { createLinkPicker } from './src/link-picker.js';
 import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocally } from './src/local-stt.js';
 import { startWindowAutoFit } from './src/window-fit.js';
+import { createCollapseToggle } from './src/collapse-toggle.js';
 import { generateLocally } from './src/local-ollama.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -284,6 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Desktop only: Android is fullscreen, resizing the window there is meaningless.
   if (!isMobileLayout()) {
+    createCollapseToggle({ container: widgetContainer, button: document.getElementById('btnCollapse') });
     startWindowAutoFit(widgetContainer);
   }
 
