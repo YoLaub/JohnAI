@@ -22,11 +22,17 @@ serde_json = "1.0"
 # build.rs uses `cfg!(target_os = "macos")` to decide link flags, which reflects the
 # *host* OS in a build script, not the cross-compile target — so it wrongly demands
 # a macOS-only static lib (ggml-blas) when cross-compiling to Android from macOS.
-# Android keeps working via the existing server-side Whisper fallback instead.
+# Android uses the phone's own speech recognizer instead (see below).
 [target.'cfg(not(target_os = "android"))'.dependencies]
 whisper-rs = "0.16.0"
 reqwest = { version = "0.13.4", features = ["stream", "json"] }
 futures-util = "0.3.33"
+
+# Android dictation: Android's built-in SpeechRecognizer, on-device, no server
+# round-trip. The plugin's own whisper-rs dependency is desktop-only, so the
+# cross-compile issue above doesn't apply. Pinned: third-party code with mic access.
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-stt = "=0.2.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 whisper-rs = { version = "0.16.0", features = ["metal", "coreml"] }

@@ -17,6 +17,7 @@ import { isTauriRuntime, isLocalModelReady, downloadLocalModel, transcribeLocall
 import { startWindowAutoFit } from './src/window-fit.js';
 import { createCollapseToggle } from './src/collapse-toggle.js';
 import { generateLocally } from './src/local-ollama.js';
+import { isNativeDictationAvailable, createNativeDictation } from './src/native-stt.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -459,10 +460,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Android app: dictation runs entirely on the phone (Android SpeechRecognizer),
+  // no audio upload. Everywhere else: the audio controller above.
+  const nativeDictation = isNativeDictationAvailable()
+    ? createNativeDictation({
+        invoke: window.__TAURI__.core.invoke,
+        addPluginListener: window.__TAURI__.core.addPluginListener,
+        onText: (text) => { promptInput.value = text; },
+        onDone: (text) => {
+          if (text.trim()) {
+            sendPrompt(text);
+          } else {
+            responsePanel.classList.remove('hidden');
+            responseContent.innerHTML = `<span style="color: #f59e0b;">🔇 Aucune parole reconnue.</span>`;
+          }
+        },
+      })
+    : null;
+  let nativeListening = false;
+
   btnMic.addEventListener('click', async () => {
-    const nowListening = !audioController.isListening();
+    const nowListening = nativeDictation ? !nativeListening : !audioController.isListening();
     btnMic.classList.toggle('active', nowListening);
     statusDot.classList.toggle('active', nowListening);
+
+    if (nativeDictation) {
+      nativeListening = nowListening;
+      waveform.setListening(nowListening);
+      try {
+        if (nowListening) {
+          await nativeDictation.start();
+        } else {
+          await nativeDictation.stop();
+        }
+      } catch (e) {
+        console.warn("Erreur dictée Android:", e);
+        nativeListening = false;
+        btnMic.classList.remove('active');
+        waveform.setListening(false);
+        responsePanel.classList.remove('hidden');
+        responseContent.innerHTML = `<span style="color: #ef4444;">❌ Dictée indisponible : ${escapeHtml(String(e))}</span>`;
+      }
+      return;
+    }
 
     if (nowListening) {
       await audioController.start();

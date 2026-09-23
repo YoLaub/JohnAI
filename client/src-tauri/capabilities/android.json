@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.json",
+  "identifier": "android",
+  "description": "Android-only: on-device dictation via tauri-plugin-stt",
+  "platforms": ["android"],
+  "windows": ["*"],
+  "permissions": [
+    "stt:allow-start-listening",
+    "stt:allow-stop-listening",
+    "stt:allow-register-listener",
+    "stt:allow-remove-listener"
+  ]
+}

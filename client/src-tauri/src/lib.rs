@@ -19,6 +19,9 @@ pub fn run() {
             ollama::ollama_generate,
         ]);
 
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_stt::init());
+
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
