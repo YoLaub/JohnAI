@@ -58,8 +58,8 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   - `server/memory_facts.py` : détection des commandes "retiens que" / "oublie que"
   - `server/database.py` : mémoire SQLite (historique + faits durables)
   - STT serveur via faster-whisper (chargé dans `main.py`) — **fallback** pour la PWA
-    Android servie via navigateur, et pour l'APK Android (whisper-rs exclu de ce
-    target, voir ci-dessous), ou si la transcription locale échoue sur desktop.
+    Android servie via navigateur, ou si la transcription locale échoue sur desktop.
+    **Jamais utilisé par l'APK Android** (voir « STT Android » ci-dessous).
 - **STT local (prioritaire sur Mac/Windows uniquement)** : `client/src-tauri/src/whisper_stt.rs`
   (whisper-rs/whisper.cpp, Metal+CoreML sur macOS) + `client/src/local-stt.js`
   (décodage audio → PCM mono 16kHz via Web Audio API, puis commande Tauri
@@ -73,6 +73,18 @@ de nouvelles fonctionnalités — pas de scope créep tant que l'existant n'est 
   dès que `cfg!(target_os = "macos")` est vrai dans son `build.rs` — qui reflète
   l'OS de la machine qui compile, pas la cible, donc ça casse le cross-compile
   macOS→Android. Bug amont, pas une régression à corriger ici.
+- **STT Android (APK, décidé le 2026-09-23)** : dictée 100 % sur le téléphone via le
+  `SpeechRecognizer` natif d'Android (moteur Google), plugin `tauri-plugin-stt`
+  (dépendance Android-only, version figée `=0.2.2` — code tiers avec accès micro,
+  relu avant ajout ; relire le Kotlin avant toute montée de version) +
+  `client/src/native-stt.js`. **Aucun repli serveur, volontaire** : l'utilisateur ne
+  veut pas solliciter le VPS pour ça. Mode continu : Android coupe un segment après
+  ~3 s de silence et le plugin relance l'écoute ; les segments finaux sont recollés
+  et envoyés en une seule note à l'arrêt. À l'arrêt, le plugin fait `cancel()`, donc
+  le dernier segment n'arrive jamais en « final » : on garde le dernier résultat
+  partiel (d'où l'« erreur client » code 5 dans les logs, bénigne). Droits limités
+  à start/stop/listeners dans `capabilities/android.json` (`platforms: ["android"]`).
+  Détection : `window.__TAURI__` + user-agent Android.
 - **Structure crate Tauri (`client/src-tauri/`)** : `src/lib.rs` contient le
   `tauri::Builder` (fonction `run()`, taguée `#[cfg_attr(mobile, tauri::mobile_entry_point)]`) ;
   `src/main.rs` ne fait qu'appeler `johnai_desktop_lib::run()`. Obligatoire pour Android
