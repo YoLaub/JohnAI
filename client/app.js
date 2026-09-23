@@ -394,13 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Real Microphone Capture, MediaRecorder & Speech-to-Text
   const audioController = createAudioController({
     waveform,
-    onFinalTranscript: (text) => {
-      promptInput.value = text;
-      sendPrompt();
-    },
-    onInterimTranscript: (text) => {
-      promptInput.value = text;
-    },
     onAudioReady: async (audioBlob) => {
       responsePanel.classList.remove('hidden');
 

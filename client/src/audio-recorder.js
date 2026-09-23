@@ -1,9 +1,10 @@
 /**
- * Owns microphone capture: Web Audio analyser (for the waveform), MediaRecorder
- * (server-side Whisper transcription) and the browser's SpeechRecognition API
- * (instant local transcription) when available.
+ * Owns microphone capture: Web Audio analyser (for the waveform) and
+ * MediaRecorder (audio handed to onAudioReady for Whisper transcription).
+ * Deliberately no browser SpeechRecognition: it would transcribe the same
+ * note a second time alongside Whisper.
  */
-export function createAudioController({ waveform, onFinalTranscript, onInterimTranscript, onAudioReady, onPermissionDenied }) {
+export function createAudioController({ waveform, onAudioReady, onPermissionDenied }) {
   let audioStream = null;
   let audioContext = null;
   let analyser = null;
@@ -12,49 +13,6 @@ export function createAudioController({ waveform, onFinalTranscript, onInterimTr
   let mediaRecorder = null;
   let audioChunks = [];
   let listening = false;
-
-  const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-
-  if (SpeechRecognitionImpl) {
-    try {
-      recognition = new SpeechRecognitionImpl();
-      recognition.lang = 'fr-FR';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onresult = (event) => {
-        let interim = '';
-        let final = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript;
-          } else {
-            interim += event.results[i][0].transcript;
-          }
-        }
-
-        if (final) {
-          onFinalTranscript(final);
-        } else if (interim) {
-          onInterimTranscript(interim);
-        }
-      };
-
-      recognition.onerror = (err) => {
-        console.warn("Erreur SpeechRecognition:", err);
-      };
-
-      recognition.onend = () => {
-        if (listening && recognition) {
-          try { recognition.start(); } catch (e) {}
-        }
-      };
-    } catch (e) {
-      console.warn("SpeechRecognition non supporté dans cet environnement", e);
-    }
-  }
 
   async function start() {
     listening = true;
@@ -105,10 +63,6 @@ export function createAudioController({ waveform, onFinalTranscript, onInterimTr
         };
         mediaRecorder.start(100); // Slices data every 100ms
       }
-
-      if (recognition) {
-        try { recognition.start(); } catch (e) {}
-      }
     } catch (err) {
       console.error("Accès microphone refusé ou non supporté:", err);
       onPermissionDenied(err);
@@ -119,10 +73,6 @@ export function createAudioController({ waveform, onFinalTranscript, onInterimTr
   function stop() {
     listening = false;
     waveform.setListening(false);
-
-    if (recognition) {
-      try { recognition.stop(); } catch (e) {}
-    }
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
